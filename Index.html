@@ -1,0 +1,3465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💰 Budget Famille</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0F172A;--surface:#1E293B;--surface2:#243347;--border:#2D3F55;
+  --text:#F1F5F9;--text2:#94A3B8;--text3:#64748B;
+  --primary:#3B82F6;--primary-d:#2563EB;
+  --success:#10B981;--warning:#F59E0B;--danger:#EF4444;--purple:#8B5CF6;
+  --c-besoins:#3B82F6;--c-envies:#F59E0B;--c-epargne:#10B981;--c-revenus:#8B5CF6;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* HEADER */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;flex-wrap:wrap}
+.hdr-logo{font-size:18px;font-weight:800;white-space:nowrap}
+.hdr-logo span{color:var(--primary)}
+.hdr-stats{display:flex;gap:20px;flex:1;justify-content:center;flex-wrap:wrap}
+.stat{text-align:center}
+.stat-lbl{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.stat-val{font-size:15px;font-weight:700}
+.pos{color:var(--success)}.neg{color:var(--danger)}.neu{color:var(--primary)}.sav{color:var(--c-epargne)}
+.hdr-actions{display:flex;gap:8px}
+
+/* FILTERS */
+.flt{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.flt-grp{display:flex;align-items:center;gap:5px}
+.flt-lbl{font-size:11px;color:var(--text2);white-space:nowrap}
+input[type=date],select,.s-inp{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;outline:none}
+input[type=date]:focus,select:focus,.s-inp:focus{border-color:var(--primary)}
+.s-inp{width:180px}
+
+/* BUTTONS */
+.btn{padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-p{background:var(--primary);color:#fff}.btn-p:hover{background:var(--primary-d)}
+.btn-s{background:var(--surface);border:1px solid var(--border);color:var(--text2)}.btn-s:hover{border-color:var(--primary);color:var(--primary)}
+.btn-ok{background:var(--success);color:#fff}.btn-ok:hover{opacity:.85}
+.btn-sm{padding:3px 7px;font-size:11px;border-radius:4px}
+.btn-danger{background:var(--danger);color:#fff}
+
+/* MAIN */
+.main{padding:16px 20px}
+
+/* CHARTS */
+.charts-section{margin-bottom:20px}
+.row{display:grid;gap:14px;margin-bottom:14px}
+.r1{grid-template-columns:1fr}
+.r2{grid-template-columns:1fr 1fr}
+.r3{grid-template-columns:1fr 1fr 1fr}
+.r22{grid-template-columns:2fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-ttl{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+canvas{max-width:100%}
+
+/* TABLE */
+.tbl-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.tbl-hdr{padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tbl-title{font-size:14px;font-weight:700;flex:1}
+.tbl-info{font-size:11px;color:var(--text2)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:var(--surface2);padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;user-select:none;border-bottom:1px solid var(--border)}
+th:hover{color:var(--primary)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.amt-d{color:var(--danger);font-weight:600}.amt-c{color:var(--success);font-weight:600}
+.badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:99px;font-size:10px;font-weight:600;white-space:nowrap}
+.b-B{background:rgba(59,130,246,.15);color:#60A5FA}
+.b-E{background:rgba(245,158,11,.15);color:#FCD34D}
+.b-Ep{background:rgba(16,185,129,.15);color:#34D399}
+.b-R{background:rgba(139,92,246,.15);color:#A78BFA}
+.b-N{background:rgba(107,114,128,.15);color:#9CA3AF}
+.b-VI{background:rgba(100,116,139,.15);color:#94A3B8;font-style:italic}
+.check{color:var(--success);cursor:default;font-size:15px}
+.uncheck{color:var(--text3);cursor:pointer;font-size:15px;transition:.15s}.uncheck:hover{color:var(--warning)}
+
+select.cat-sel{background:transparent;border:1px solid transparent;color:var(--text);padding:1px 3px;border-radius:4px;font-size:11px;cursor:pointer;max-width:160px}
+select.cat-sel:hover{border-color:var(--border)}
+select.cat-sel:focus{border-color:var(--primary);background:var(--surface2);outline:none}
+
+/* PAGINATION */
+.pg{padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid var(--border)}
+.pg-info{font-size:12px;color:var(--text2);padding:0 10px}
+.pg-btn{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.pg-btn:hover{border-color:var(--primary)}
+.pg-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pg-btn:disabled{opacity:.3;cursor:default}
+
+/* DROP ZONE */
+.drop-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:500;align-items:center;justify-content:center;flex-direction:column}
+.drop-ov.on{display:flex}
+.drop-box{border:3px dashed var(--primary);border-radius:16px;padding:50px 70px;text-align:center;color:var(--primary)}
+.drop-icon{font-size:48px;margin-bottom:10px}
+.drop-txt{font-size:17px;font-weight:700}
+.drop-sub{font-size:13px;color:var(--text2);margin-top:6px}
+
+/* MODAL */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-ov.on{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:820px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.modal-ttl{font-size:15px;font-weight:700;flex:1}
+.modal-x{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:18px 22px}
+.modal-ftr{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* Review item */
+.rv-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center}
+.rv-merchant{font-weight:600;font-size:13px;flex:1}
+.rv-count{font-size:11px;color:var(--text3)}
+.rv-examples{font-size:11px;color:var(--text2);margin-top:2px}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:50px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:14px}
+.empty-ttl{font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px}
+.empty-desc{font-size:13px;margin-bottom:20px;line-height:1.6}
+
+/* Account dot */
+.adot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+
+/* Separator */
+.sep{width:1px;height:20px;background:var(--border)}
+
+/* ALERT */
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.alert-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#FCD34D}
+.alert-ok{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:#34D399}
+
+/* Progress */
+.progress{background:var(--border);border-radius:99px;height:6px;overflow:hidden;margin-top:6px}
+.progress-bar{height:100%;border-radius:99px;transition:width .3s}
+
+/* PRÉVISION PANEL */
+.prev-section{margin-bottom:20px}
+.prev-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.prev-title{font-size:15px;font-weight:700}
+.prev-toggle{display:flex;gap:6px}
+.tab-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer}
+.tab-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.prev-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.prev-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden}
+.prev-card-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.prev-acc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.prev-acc-name{font-size:13px;font-weight:700;flex:1}
+.prev-total{font-size:12px;color:var(--text2)}
+.prev-bar-wrap{background:var(--border);border-radius:99px;height:8px;margin-bottom:10px;overflow:hidden;display:flex}
+.prev-bar-paid{background:var(--success);border-radius:99px 0 0 99px;transition:width .5s}
+.prev-bar-late{background:var(--danger);transition:width .5s}
+.prev-bar-pend{background:var(--warning);border-radius:0 99px 99px 0;transition:width .5s}
+.prev-nums{display:flex;gap:12px;font-size:11px;margin-bottom:10px;flex-wrap:wrap}
+.pn-paid{color:var(--success)}.pn-pend{color:var(--warning)}.pn-late{color:var(--danger)}
+.prev-list{max-height:180px;overflow-y:auto}
+.rec-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border)22;font-size:11px}
+.rec-row:last-child{border-bottom:none}
+.rec-day{color:var(--text3);width:30px;text-align:right;flex-shrink:0}
+.rec-merchant{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-cat{font-size:10px;color:var(--text3)}
+.rec-amt{font-weight:600;white-space:nowrap;flex-shrink:0}
+.rec-status{width:16px;text-align:center;flex-shrink:0}
+.s-paid{color:var(--success)}.s-late{color:var(--danger)}.s-pend{color:var(--warning)}
+.need-badge{font-size:14px;font-weight:800;margin-top:4px}
+.alert-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:#FCA5A5;margin:2px}
+.ok-pill{background:rgba(16,185,129,.12);color:#6EE7B7}
+.warn-pill{background:rgba(245,158,11,.12);color:#FCD34D}
+.rec-full-list .rec-row{padding:5px 0}
+.cat-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)22;font-size:12px}
+.cat-row:last-child{border-bottom:none}
+.stab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cat-name{flex:1;font-weight:500}
+.cat-avg{color:var(--text2);width:80px;text-align:right;flex-shrink:0}
+.cat-bar-wrap{width:90px;height:6px;background:var(--border);border-radius:99px;overflow:hidden;flex-shrink:0}
+.cat-bar-fill{height:100%;border-radius:99px}
+.cat-remaining{width:75px;text-align:right;flex-shrink:0;font-weight:600}
+.acc-breakdown{font-size:10px;color:var(--text3);margin-left:18px;line-height:1.6}
+.cat-section-hdr{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;
+  letter-spacing:.5px;padding:10px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.stability-legend{display:flex;gap:14px;font-size:11px;color:var(--text2);margin-bottom:10px;flex-wrap:wrap}
+.stab-item{display:flex;align-items:center;gap:4px}
+
+@media(max-width:900px){.r3{grid-template-columns:1fr 1fr}.r22{grid-template-columns:1fr}}
+@media(max-width:600px){.r2,.r3{grid-template-columns:1fr}.hdr-stats{display:none}.prev-cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-logo">💰 Budget <span>Famille</span></div>
+  <div class="hdr-stats" id="hdr-stats">
+    <div class="stat"><div class="stat-lbl">Revenus</div><div class="stat-val pos" id="s-rev">—</div></div>
+    <div class="sep"></div>
+    <div class="stat"><div class="stat-lbl">Dépenses</div><div class="stat-val neg" id="s-dep">—</div></div>
+    <div class="sep"></div>
+    <div class="stat"><div class="stat-lbl">Balance</div><div class="stat-val neu" id="s-bal">—</div></div>
+    <div class="sep"></div>
+    <div class="stat"><div class="stat-lbl">Épargne</div><div class="stat-val sav" id="s-sav">—</div></div>
+    <div class="sep"></div>
+    <div class="stat"><div class="stat-lbl">Transactions</div><div class="stat-val neu" id="s-count">—</div></div>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn btn-s" onclick="openReviewModal()" id="btn-review" style="display:none">⚠️ À classer (<span id="review-count">0</span>)</button>
+    <button class="btn btn-s" onclick="openVIModal()" id="btn-vi" title="Détecter les virements entre vos 4 comptes">⇄ Virements internes</button>
+    <button class="btn btn-p" onclick="triggerFileInput()">↑ Importer</button>
+    <button class="btn btn-s" id="btn-recat" onclick="openRecatModal()" title="Recalculer les catégories des opérations non confirmées" style="display:none">🔄 Recatégoriser (<span id="recat-count">0</span>)</button>
+    <button class="btn btn-s" onclick="exportJSON()">↓ Export JSON</button>
+    <button class="btn btn-s" onclick="triggerJSONInput()" title="Réimporter un JSON précédemment exporté">↑ Import JSON</button>
+    <input type="file" id="json-input" accept=".json" style="display:none" onchange="handleJSONImport(this.files[0])">
+    <button class="btn btn-s" title="Effacer toutes les données" onclick="clearAll()">🗑</button>
+    <input type="file" id="file-input" accept=".csv,.xls,.xlsx" multiple style="display:none" onchange="handleFiles(this.files)">
+  </div>
+</header>
+
+<!-- FILTERS -->
+<div class="flt">
+  <div class="flt-grp"><span class="flt-lbl">Du</span><input type="date" id="f-start" onchange="applyFilters()"></div>
+  <div class="flt-grp"><span class="flt-lbl">Au</span><input type="date" id="f-end" onchange="applyFilters()"></div>
+  <div class="flt-grp"><span class="flt-lbl">Compte</span>
+    <select id="f-account" onchange="applyFilters()">
+      <option value="all">Tous les comptes</option>
+      <option value="CB Yann">CB Yann</option>
+      <option value="CB Chloé">CB Chloé</option>
+      <option value="Compte commun Fortuneo">Commun Fortuneo</option>
+      <option value="Compte SG">Compte SG</option>
+    </select>
+  </div>
+  <div class="flt-grp"><span class="flt-lbl">Macro</span>
+    <select id="f-macro" onchange="onMacroChange()">
+      <option value="all">Toutes catégories</option>
+      <option value="Besoins">Besoins</option>
+      <option value="Envies">Envies</option>
+      <option value="Épargne">Épargne</option>
+      <option value="Revenus">Revenus</option>
+      <option value="Non classé">Non classé</option>
+      <option value="Virements internes">Virements internes</option>
+    </select>
+  </div>
+  <div class="flt-grp" id="f-subcat-grp">
+    <span class="flt-lbl">Sous-cat.</span>
+    <select id="f-subcat" onchange="applyFilters()" style="min-width:180px">
+      <option value="all">Toutes</option>
+    </select>
+  </div>
+  <div class="flt-grp">
+    <input class="s-inp" type="text" id="f-search" placeholder="🔍 Rechercher…" oninput="applyFilters()">
+  </div>
+  <button class="btn btn-s btn-sm" onclick="resetFilters()">✕ Réinitialiser</button>
+  <div class="flt-grp" style="margin-left:auto">
+    <span class="flt-lbl">Afficher</span>
+    <select id="f-pagesize" onchange="state.pageSize=+this.value;state.page=1;renderTable()">
+      <option value="50">50</option><option value="100">100</option><option value="200">200</option><option value="500">500</option>
+    </select>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- PRÉVISION MOIS EN COURS -->
+  <div class="prev-section" id="prev-section">
+    <div class="prev-header">
+      <span class="prev-title" id="prev-title">📅 Prévision du mois en cours</span>
+      <div class="prev-toggle">
+        <button class="tab-btn active" id="tab-besoin" onclick="switchPrevTab('besoin')">💳 Besoin en cash</button>
+        <button class="tab-btn" id="tab-recurrences" onclick="switchPrevTab('recurrences')">🔁 Récurrences détectées</button>
+        <button class="tab-btn" id="tab-alertes" onclick="switchPrevTab('alertes')">🔔 Alertes</button>
+        <button class="tab-btn" id="tab-categories" onclick="switchPrevTab('categories')">📊 Par catégorie</button>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="renderPrevision()" title="Recalculer">⟳</button>
+    </div>
+    <div id="prev-content"></div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-section" id="charts-section">
+    <!-- Row 1: Monthly spending stacked bar (full width) -->
+    <div class="row r1">
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">📊 Dépenses par mois</span>
+          <span id="chart-filter-label" style="font-size:11px;color:var(--warning)"></span>
+        </div>
+        <div style="height:220px"><canvas id="c-monthly"></canvas></div>
+      </div>
+    </div>
+    <!-- Row 2: Revenue + balance -->
+    <div class="row r1">
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">📈 Revenus & Balance mensuelle</span></div>
+        <div style="height:200px"><canvas id="c-revenue"></canvas></div>
+      </div>
+    </div>
+    <!-- Row 3: Donut macro + Besoins detail + Envies detail -->
+    <div class="row r3">
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">🍩 Répartition macro</span></div>
+        <div style="height:180px"><canvas id="c-donut"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">🏠 Détail Besoins</span></div>
+        <div style="height:180px"><canvas id="c-besoins"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">🛍 Détail Envies</span></div>
+        <div style="height:180px"><canvas id="c-envies"></canvas></div>
+      </div>
+    </div>
+    <!-- Row 4: Savings + Evolution + By account -->
+    <div class="row r3">
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">💚 Épargne mensuelle</span></div>
+        <div style="height:180px"><canvas id="c-savings"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">📉 Évolution Besoins / Envies</span></div>
+        <div style="height:180px"><canvas id="c-evolution"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-ttl">🏦 Par compte</span></div>
+        <div style="height:180px"><canvas id="c-account"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSACTIONS TABLE -->
+  <div class="tbl-section">
+    <div class="tbl-hdr">
+      <span class="tbl-title">📋 Transactions</span>
+      <span class="tbl-info" id="tbl-info"></span>
+      <button class="btn btn-ok btn-sm" onclick="confirmAll()">✓ Tout confirmer</button>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('date')">Date ↕</th>
+            <th>Compte</th>
+            <th>Libellé</th>
+            <th>Marchand</th>
+            <th onclick="sortBy('amount')">Montant ↕</th>
+            <th>Macro</th>
+            <th>Catégorie</th>
+            <th>✓</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+    <div class="pg" id="pagination"></div>
+  </div>
+</div>
+
+<!-- DROP ZONE OVERLAY -->
+<div class="drop-ov" id="drop-ov" ondragover="e=>e.preventDefault()" ondrop="handleDrop(event)">
+  <div class="drop-box">
+    <div class="drop-icon">📂</div>
+    <div class="drop-txt">Déposez vos fichiers ici</div>
+    <div class="drop-sub">CSV Fortuneo / SG — Excel accepté</div>
+  </div>
+</div>
+
+<!-- REVIEW MODAL (unknown merchants) -->
+<div class="modal-ov" id="review-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-ttl">⚠️ Marchands à classer</span>
+      <button class="modal-x" onclick="closeModal('review-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="review-body"></div>
+    <div class="modal-ftr">
+      <button class="btn btn-s" onclick="closeModal('review-modal')">Fermer</button>
+      <button class="btn btn-p" onclick="applyReviewAndClose()">Appliquer</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL (account selector when ambiguous) -->
+<div class="modal-ov" id="import-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-hdr">
+      <span class="modal-ttl">📂 Choisir le compte</span>
+      <button class="modal-x" onclick="closeModal('import-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px;color:var(--text2)">Format détecté : <strong id="import-format" style="color:var(--text)"></strong></p>
+      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#93C5FD;line-height:1.6">
+        💡 <strong>Colonnes reconnues automatiquement</strong><br>
+        Si votre CSV contient une colonne <code>Catégorie</code>, elle sera utilisée directement.<br>
+        Les marchands catégorisés seront mémorisés pour les prochains imports.
+      </div>
+      <p style="margin-bottom:10px;font-size:13px">Sélectionnez le compte associé à ce fichier :</p>
+      <select id="import-account" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:14px">
+        <option value="CB Yann">CB Yann (Fortuneo)</option>
+        <option value="CB Chloé">CB Chloé (Fortuneo)</option>
+        <option value="Compte commun Fortuneo">Compte commun Fortuneo</option>
+        <option value="Compte SG">Compte courant commun SG</option>
+      </select>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-s" onclick="closeModal('import-modal');pendingImport=null">Annuler</button>
+      <button class="btn btn-p" onclick="confirmImport()">Importer</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIREMENTS INTERNES MODAL -->
+<div class="modal-ov" id="vi-modal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-hdr">
+      <span class="modal-ttl">⇄ Virements internes détectés</span>
+      <button class="modal-x" onclick="closeModal('vi-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="vi-body" style="max-height:65vh;overflow-y:auto"></div>
+    <div class="modal-ftr">
+      <span id="vi-summary" style="font-size:12px;color:var(--text2);flex:1"></span>
+      <button class="btn btn-s" onclick="closeModal('vi-modal')">Annuler</button>
+      <button class="btn btn-s" onclick="selectAllVI(true)">✓ Tout sélectionner</button>
+      <button class="btn btn-ok" onclick="applyVI()">⇄ Appliquer la sélection</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECATEGORIZE MODAL -->
+<div class="modal-ov" id="recat-modal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-hdr">
+      <span class="modal-ttl">🔄 Propositions de recatégorisation</span>
+      <button class="modal-x" onclick="closeModal('recat-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="recat-body" style="max-height:60vh;overflow-y:auto"></div>
+    <div class="modal-ftr">
+      <span id="recat-summary" style="font-size:12px;color:var(--text2);flex:1"></span>
+      <button class="btn btn-s" onclick="closeModal('recat-modal')">Annuler</button>
+      <button class="btn btn-s" onclick="applySelected()" id="btn-apply-selected">✓ Appliquer la sélection</button>
+      <button class="btn btn-ok" onclick="applyAllProposals()">✓ Tout appliquer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// CONSTANTS & CATEGORIES
+// =====================================================================
+const MACROS = {
+  'Besoins':           { color:'#3B82F6', cls:'b-B' },
+  'Envies':            { color:'#F59E0B', cls:'b-E' },
+  'Épargne':           { color:'#10B981', cls:'b-Ep' },
+  'Revenus':           { color:'#8B5CF6', cls:'b-R' },
+  'Virements internes':{ color:'#64748B', cls:'b-VI' },
+  'Non classé':        { color:'#6B7280', cls:'b-N' }
+};
+
+const SUBS = {
+  'Besoins':           ['alimentation de base','transports/voiture','assurances','prêts immo','factures énergie/eau','santé','famille','cantine','frais bancaires','ménage','frais notaire'],
+  'Envies':            ['sorties resto/WE','shopping','vacances/WE en famille','abonnements sports','abonnements divertissements','courses non essentielles'],
+  'Épargne':           ['épargne'],
+  'Revenus':           ['salaires','remboursements','CAF'],
+  'Virements internes':['virement interne'],
+};
+
+// Sub -> Macro reverse map
+const SUB2MACRO = {};
+Object.entries(SUBS).forEach(([m,ss])=>ss.forEach(s=>SUB2MACRO[s]=m));
+
+const ALL_SUBS = Object.values(SUBS).flat();
+
+// Level 1: merchant rules learned from 879 historical transactions (Sept 2023 → Mar 2025)
+const MERCHANT_RULES = {
+  "PLAYBAC": "abonnements divertissements",
+  "IMPÔTS": "frais bancaires",
+  "BIP & GO": "transports/voiture",
+  "ALLIANZ I A R D ALLIANZ I A R D": "assurances",
+  "ANTARIUS": "frais bancaires",
+  "MULT IMPACT": "assurances",
+  "GC RE LUKO COVER": "assurances",
+  "CLIMYM MAINTENANCE 10 03": "factures énergie/eau",
+  "ALEXIS LELOUCY 10 03": "vacances/WE en famille",
+  "FREE": "abonnements divertissements",
+  "PAJEMPLOI": "salaires",
+  "PRÊT IMMO": "prêts immo",
+  "SOGESSUR": "assurances",
+  "PAIEMENT ROSA": "ménage",
+  "ASSMAT": "famille",
+  "CAF DU RHONE": "salaires",
+  "EAU DU GRAND LYON": "factures énergie/eau",
+  "URSSAF CESU": "ménage",
+  "SFR": "abonnements divertissements",
+  "REMISE CHEQUE 6545558 057 DE 1 CHQ 02484": "salaires",
+  "RECU 5588516871S DE: MANGOPAY": "shopping",
+  "ALLIANZ": "assurances",
+  "LUKO": "assurances",
+  "SUEZ EAU FRANCE SAS-SUEZ EAU FRANCE": "factures énergie/eau",
+  "CRECHE": "famille",
+  "WEFLATING BARCELONA": "vacances/WE en famille",
+  "SAS SAS 4M LYON": "alimentation de base",
+  "DEEZERFR": "abonnements divertissements",
+  "APPLE.COM/BILL 0805540003": "abonnements divertissements",
+  "LA FERME DU JARI THURINS": "alimentation de base",
+  "LAURENT DAUTRIA LYON": "santé",
+  "LA LIB. DU COURS LYON": "shopping",
+  "TCL LYON": "transports/voiture",
+  "LES COULEURS DU LYON": "shopping",
+  "LAUREADE FT LYON 2EME": "shopping",
+  "LES SAVEURS ST E COLOMBIER SAU": "alimentation de base",
+  "ZARA FRANCE LYON 1": "shopping",
+  "VALERIE GIRAUD NEUVILLE SUR": "alimentation de base",
+  "NAVARRO STEPHANE MEYZIEU": "alimentation de base",
+  "TERRES LYONNAISE LYON 3EME": "alimentation de base",
+  "PATISS JACQUIER LYON": "alimentation de base",
+  "CLC STUDIO LYON": "shopping",
+  "AIRBNB * HMJKQC3 38-4000": "vacances/WE en famille",
+  "BOULANGERIE MON LYON": "alimentation de base",
+  "AXA FRANCE COLL": "santé",
+  "LA FERME GSD VENOSC": "alimentation de base",
+  "NETFLIX.COM LOS GATOS": "abonnements divertissements",
+  "CAMIEG": "santé",
+  "PRESSE LES DEUX ALPE": "vacances/WE en famille",
+  "CARREFOUR MONTAG LES DEUX ALPE": "vacances/WE en famille",
+  "BEAR AND BEERS LES DEUX ALPE": "vacances/WE en famille",
+  "EMILIE PARIS LES DEUX ALPE": "vacances/WE en famille",
+  "IF INVESTISSEMEN LES DEUX ALPE": "alimentation de base",
+  "KINOUGARDE": "famille",
+  "PHARMA DU GLACI LES DEUX ALPE": "vacances/WE en famille",
+  "GREECE 34 LES DEUX ALPE": "vacances/WE en famille",
+  "SPAR VENOSC": "vacances/WE en famille",
+  "LES MELEZES LES DEUX ALPE": "vacances/WE en famille",
+  "EDF CLIENTS PARTICULIERS": "factures énergie/eau",
+  "SYNDICAT LOCAL LES DEUX ALPE": "vacances/WE en famille",
+  "ANN CARTE SYNDICAT LOCAL LES DEUX ALPE": "vacances/WE en famille",
+  "DECATHLON 0121 BRON": "shopping",
+  "AUCHAN ST PRIES ST PRIEST": "alimentation de base",
+  "LESBURGERS* LES LYON": "sorties resto/WE",
+  "CPAM RHONE": "santé",
+  "ENERGIE MUTUELLE": "santé",
+  "COMPTOIR BOULAN BAGNOLS SUR C": "alimentation de base",
+  "IKEA VENISSIEUX VENISSEUX": "shopping",
+  "SNCF-VOYAGEURS PARIS 10": "transports/voiture",
+  "MAISON BALL BRON": "alimentation de base",
+  "L ENCHANTEMENT LYON": "shopping",
+  "POINT VISION 8 LYON 8EME": "santé",
+  "PATISSERIE JACQU LYON": "alimentation de base",
+  "APPLE.COM/BILL ITUNES.COM": "abonnements divertissements",
+  "AXA FRANCE VIE": "santé",
+  "DECATHLON FRANCE VILLENEUVE D": "shopping",
+  "AXA ASS VIE MUT": "santé",
+  "PICARD SURGELES LYON 3EME": "alimentation de base",
+  "LA VIE CLAIRE BRON": "alimentation de base",
+  "MAISON THEILLER LYON 3EME": "alimentation de base",
+  "LIDL 0558 BRON": "alimentation de base",
+  "ASSURANCE VIE SUZANNE": "épargne",
+  "ASSURANCE VIE JEANNE": "épargne",
+  "ASSURANCE VIE GASPARD": "épargne",
+  "VILLE DE LYON LYON CEDEX 01": "famille",
+  "INTERMARC DAC VL SERVAS": "transports/voiture",
+  "SAGRADA FAMILIA BARCELONA": "vacances/WE en famille",
+  "PARK GELL BARCELONA": "vacances/WE en famille",
+  "VEEPEE SAINT-DENIS": "shopping",
+  "GRAZIE GUSTO LYON": "alimentation de base",
+  "SPL MOBILITES LYON": "transports/voiture",
+  "VIREMENT AVEC FORTUNEO LDDS": "épargne",
+  "WEB AMENDE.GOUV 35 RENNES": "transports/voiture",
+  "CABESTAN GOUJON 2501329": "vacances/WE en famille",
+  "CABESTAN GOUJON 2501330": "vacances/WE en famille",
+  "SWILE 561 RUE GEORGE": "cantine",
+  "AMAZON PAYMENTS PARIS": "shopping",
+  "3X 4X ONEY CROIX": "transports/voiture",
+  "BOUCHERIE BELIN LYON": "alimentation de base",
+  "AU FIL DU TEMPS LES DEUX ALPE": "vacances/WE en famille",
+  "LE DIABLE AU CO MONT DE LANS": "vacances/WE en famille",
+  "JACQUES SPORTS LES DEUX ALPE": "vacances/WE en famille",
+  "SATA 2 ALPES INT LES DEUX ALPES": "vacances/WE en famille",
+  "VIREMENT AVEC FORTUNEO COMPT": "vacances/WE en famille",
+  "SATA 2 ALPES LES DEUX ALPE": "vacances/WE en famille",
+  "KANATA LES DEUX ALPE": "vacances/WE en famille",
+  "SYNDICAT LOCAL LES DEUX ALPES": "vacances/WE en famille",
+  "STATION AVIA BRON": "transports/voiture",
+  "VIREMENT AVEC FORTUNEO LIVRE": "épargne",
+  "TENACY": "salaires",
+  "GARE PART DIEU LYON 3EME": "alimentation de base",
+  "L OCTAVE LYON": "cantine",
+  "BRASSERIE ROSEAU LYON": "sorties resto/WE",
+  "MGP*VINTED VILNIUS": "shopping",
+  "AMAZON EU SARL PAYLI2090401/": "shopping",
+  "SHELL 3313 ALLAN": "transports/voiture",
+  "LEROY MERLIN VENISSIEUX": "shopping",
+  "PHIE DE CONNAUX CONNAUX": "santé",
+  "NICOLAS 7535 LYON 3": "shopping",
+  "DR DANTEC ADRIE LYON": "santé",
+  "KLARNA*FISCHER PARIS": "shopping",
+  "CHARMILLES LYON": "santé",
+  "SKATEPRO HINNERUP 75,90 EUR": "shopping",
+  "ENDURANCE CHRONO LE CAILAR": "sorties resto/WE",
+  "DECATHLON 0288 LYON": "shopping",
+  "SEPHORA C & C SARAN": "shopping",
+  "SC-VIEUXCAMPEUR LYON": "shopping",
+  "VIREMENT AVEC FORTUNEO": "vacances/WE en famille",
+  "CASTORAMA BRON CEDEX": "shopping",
+  "SEANCES YANN GOUJON": "santé",
+  "DOTT SCOOTER RID AMSTERDAM": "transports/voiture",
+  "LE PAIN DE SUCRE LYON": "sorties resto/WE",
+  "L ARTCHIMISTE LYON EME": "sorties resto/WE",
+  "AMAZON PAYMENTS PAYLI2441535/": "shopping",
+  "LECYCLO.COM 0486778090": "transports/voiture",
+  "LES 4G LYON": "sorties resto/WE",
+  "FOOD TRUCKS GOUR PIERRE BENITE": "sorties resto/WE",
+  "KLARNA FISCHER S PARIS": "shopping",
+  "WWW.FIZZER.COM SAINT-EGREVE": "shopping",
+  "SPL RU LYON": "transports/voiture",
+  "HAAGEN DAZS LYON 2EME": "sorties resto/WE",
+  "ANN CARTE ASPHALTE 0974593467": "shopping",
+  "MRS RA 262 SAINT CYR AU": "cantine",
+  "NOUNOU-TOP E14 9NN LO 11,98 EUR": "famille",
+  "HPY*TICKETAC PARIS": "sorties resto/WE",
+  "LES VIKINGS LES DEUX ALPE": "vacances/WE en famille",
+  "EPARGNE CHLOE": "épargne",
+  "ERIC KAYSER AVIGNON": "alimentation de base",
+  "CFTA RHONE MEYZIEU": "transports/voiture",
+  "ROUSILLE LYON": "sorties resto/WE",
+  "RTE RESEAU DE TRANSPORT D EL": "salaires",
+  "BILLETTERIE WEB IVRY SUR SEINE": "shopping",
+  "PIROUETTE-CACAH LYON": "shopping",
+  "PRALUS LYON": "alimentation de base",
+  "VESSIERE MONTCH LYON": "alimentation de base",
+  "DR PUENTEDURA LYON": "santé",
+  "TIGERMILK LYON": "sorties resto/WE",
+  "MINASSIAN MINAS LYON": "sorties resto/WE",
+  "VIREMENT EPARGNE LDDS": "épargne",
+  "ASPHALTE 0974593467": "shopping",
+  "MGP*VINTED 0 VILNIUS": "shopping",
+  "MONOPRIX LYON 2": "shopping",
+  "DR SALINO SAMUE LYON": "santé",
+  "TOTAL VOREPPE": "transports/voiture",
+  "BOULANGERIE JOS ALLEMOND": "alimentation de base",
+  "MAXICOFFEE GC DAUMESNIL": "alimentation de base",
+  "SP ULTRAPRO ANTWERPEN": "shopping",
+  "MGP*LEETCHI SA 0 PARIS": "shopping",
+  "AIRBNB * HM229CP 38-4000": "vacances/WE en famille",
+  "PPG*PAYPLUG COM DURTOL": "shopping",
+  "LEBONCOIN PARIS": "shopping",
+  "DOTT SCOOTER RID NONE": "transports/voiture",
+  "AMAZON PRIME*096 AMAZON.FR/PRI": "abonnements divertissements",
+  "LE COMPTOIR LYON 9EME": "cantine",
+  "DR JOMARD J LYON": "santé",
+  "TIMBRE FISCAL 35 RENNES": "frais bancaires",
+  "ANN CARTE AMAZON PAYMENTS PAYLI2441535/": "shopping",
+  "AMZN MKTP FR*PE6 AMAZON.FR": "shopping",
+  "AMZN MKTP FR*J75 AMAZON.FR": "shopping",
+  "NINTENDO CA13255 FRANKFURT AM": "shopping",
+  "TRAINLINE PARIS": "vacances/WE en famille",
+  "FNAC BAGNOLS SUR C": "shopping",
+  "KING JOUET BAGNOLS SUR C": "shopping",
+  "LYDIA*LYDIA SOLU PARIS": "sorties resto/WE",
+  "UBER *TRIP HELP.UBER.COM": "transports/voiture",
+  "KEOLIS LYON LYON": "transports/voiture",
+  "DR COLLEAUX LYON 3": "santé",
+  "TICKETMASTER NANTERRE": "sorties resto/WE",
+  "AMAZON.FR*QX2IC0 AMAZON.FR": "shopping",
+  "AGUISA SPORT CORMEILLES EN": "shopping",
+  "AMAZON.FR*6C2S89 AMAZON.FR": "shopping",
+  "SUMUP *GROUPE T LIMONEST": "shopping",
+  "SUMUP *4ULTRA MORIZES": "shopping",
+  "ATHLETES IN MOT PALAISEAU": "shopping",
+  "DR DANTEC LYON": "santé",
+  "INTERMARCHE S/S VIZILLE": "transports/voiture",
+  "KLARNA*VEEPEE PARIS": "shopping",
+  "MILONGA LYON": "sorties resto/WE",
+  "KLARNA*JD SPORTS PARIS": "shopping",
+  "ALMA NEUILLY-SUR-SE": "shopping",
+  "VINTED VILNIUS": "shopping",
+  "TETEDOIE LYON": "sorties resto/WE",
+  "KLARNA HOKA PARIS": "shopping",
+  "TOTAL ST SYMPHORIEN": "transports/voiture",
+  "SEZANE LYON": "shopping",
+  "L EQUILIBRISTE L LYON 3EME": "sorties resto/WE",
+  "LA GAMELLE LYON": "sorties resto/WE",
+  "DECAT 1994 LYON": "shopping",
+  "ANN CARTE HPY*VEEPEE LA PLAINE SAIN": "shopping",
+  "ALMA LEXCEPTION NEUILLY-SUR-S": "shopping",
+  "CARREFOURMARKET BAGNOLS SUR C": "alimentation de base",
+  "VIVAL DIEULEFIT": "alimentation de base",
+  "KLARNA VEEPEE.FR PARIS": "shopping",
+  "MAISON DESCHAMPS LYON": "cantine",
+  "EXTRA SPORTS LYON": "shopping",
+  "AMZN MKTP FR*TH6 AMAZON.FR": "shopping",
+  "HPY*VEEPEE LA PLAINE SAIN": "shopping",
+  "MONTCYCLE LYON": "transports/voiture",
+  "KLARNA*JDSPORTS. PARIS": "shopping",
+  "MEDICINA GESTION FONTAINES SUR": "santé",
+  "VEEPEE ST DENIS": "shopping",
+  "QUATORZE REGION LYON": "shopping",
+  "L'ATELIER ESPAGN LYON": "alimentation de base",
+  "LEVIS ONLINE SHO DIEGEM": "shopping",
+  "SMALLABLE PARIS": "shopping",
+  "AKKUSHOP-FRANCE HAGUENAU": "shopping",
+  "AMAZON EU SARL PARIS": "shopping",
+  "ANN CARTE AMZN MKTP FR AMAZON.FR": "shopping",
+  "CALAO 53 LYON 7E ARRON": "alimentation de base",
+  "GD PHIE MONTCHAT LYON": "santé",
+  "REMBOURSEMENT VACANCES 2025": "épargne",
+  "M. ET MME BONNAVENTURE": "shopping",
+  "CHÈQUE": "transports/voiture",
+  "TOTAL BOURG D'OISAN": "transports/voiture",
+  "CBMDISTRIBUTION VAULNAVEYS LE": "transports/voiture",
+  "VALERIE GIRAUD NEUVILLE SUR S": "alimentation de base",
+  "ANN CARTE JOUET ONLINE VOIRON": "shopping",
+  "DUBUIS ISABELLE LYON": "santé",
+  "EPARGNE DU CREDIT IMPOTS": "épargne",
+  "DGFIP FINANCES PUBLIQUES": "salaires",
+  "LE BON COIN": "shopping",
+  "INTERSPORT.FR LONGJUMEAU": "shopping",
+  "NETFLIX COM PARIS": "abonnements divertissements",
+  "FRAIS VIREMENT": "frais bancaires",
+  "MIRAL LYON": "alimentation de base",
+  "TICKETING CINE LA SEYNE SUR": "vacances/WE en famille",
+  "BOUCHERIE CHARCU LYON": "alimentation de base",
+  "FROMAGER DE MONT LYON": "alimentation de base",
+  "PIERRE ET MARCEL LYON": "alimentation de base",
+  "CARREFOUR DAC VL BAGNOLS SUR CE": "shopping",
+  "DIRECTION GENERALE DES FINA": "factures énergie/eau",
+  "BAZARLAND ST HDB BAGNOLS SUR C": "shopping",
+  "BUREAU VALLEE BAGNOLS SUR C": "shopping",
+  "VOISIN LYON 9EME": "shopping",
+  "OCTOBRE PARIS": "shopping",
+  "L'ODYSSEE DES CO LYON": "shopping",
+  "U EXPRESS 69 LYON": "alimentation de base",
+  "JOUET ONLINE VOIRON": "shopping",
+  "SUMUP *MY CATER LYON": "alimentation de base",
+  "SINABRO LYON EME": "sorties resto/WE",
+  "CERISE & POTIRON LYON": "alimentation de base",
+  "CASA JAGUAR LYON": "sorties resto/WE",
+  "MONOPRIX MPX CLICHY": "shopping",
+  "STATION AVIADAC ST SYMPHORIEN": "transports/voiture",
+  "EDF CLT PART RBT SCT": "factures énergie/eau",
+  "EPARGNE": "épargne",
+  "LA REDOUTE ROUBAIX": "shopping",
+  "EAU GRAND LYON": "factures énergie/eau",
+  "HPY*OIA-16BAGNOL BAGNOLS SCEZE": "shopping",
+  "INTERMARCHE BAGNOLS SUR C": "alimentation de base",
+  "VOS CADEAUX CHLOE ET ME": "shopping",
+  "CADEAU CHLOE": "shopping",
+  "CADEAU NOEL MELANIE": "shopping",
+  "LEA CAUCHARD": "shopping",
+  "MJC": "famille",
+  "CADEAU NOEL MAMAN COMPL": "shopping",
+  "CADEAU NOEL LOU ET COMP": "shopping",
+  "REST SCOL CB NET 69 LYON": "famille",
+  "PPG*LABELLEBOUCL LYON": "shopping",
+  "CADEAU NOEL MANOU CHLOE": "shopping",
+  "CADEAU NOEL MAMAN CHLOE": "shopping",
+  "CADEAU NOEL CHLOE": "shopping",
+  "CAB MEDICAL OPH LYON 8": "santé",
+  "CARREFOUR CITY LYON": "alimentation de base",
+  "IMAGE LIBRE STUD BIARRITZ": "shopping",
+  "MUTUELLE AXA": "santé",
+  "PAUL & NANY LYON": "shopping",
+  "AUX MERVEILLEUX LYON": "alimentation de base",
+  "LE RIVE GAUCHE LYON": "shopping",
+  "NETFLIX.COM PARIS": "abonnements divertissements",
+  "SAS SAINT GENEST LYON": "alimentation de base",
+  "STATION AVIA NERONDE": "transports/voiture",
+  "TRIBEE MONS EN BAROE": "sorties resto/WE",
+  "LA REDOUTE 59100 ROUBAIX": "shopping",
+  "AUCHAN SUPERMAR BESSE ET SAIN": "vacances/WE en famille",
+  "REMBOURSEMENT CANADA": "épargne",
+  "TRESO CONTROLE A RENNES CDX": "transports/voiture",
+  "REMBOURSEMENT DECATH AUVERGN": "vacances/WE en famille",
+  "CARREFOUR EXPR LE BOURG D OI": "alimentation de base",
+  "SUPERETTE MONCHA LYON": "alimentation de base",
+  "APPLE.COM/BILL CORK": "abonnements divertissements",
+  "GAEL DECATHEAUGRUE": "vacances/WE en famille",
+  "AIRBNB * HMTCEFJ 38-4000": "vacances/WE en famille",
+  "WEEKEND AUVERGNE DECATH": "vacances/WE en famille",
+  "YUL BGL ET DORVAL 47,48 CAD": "sorties resto/WE",
+  "3729-MNTR DORVAL 20,66 CAD": "sorties resto/WE",
+  "STARBUCKS DORVAL 10,70 CAD": "sorties resto/WE",
+  "ANTIPODE MONTREAL 211,64 CAD": "sorties resto/WE",
+  "UBER CANAD TORONTO 46,08 CAD": "sorties resto/WE",
+  "UBER CANAD TORONTO 6,91 CAD": "sorties resto/WE",
+  "VICES & VE MONTREAL 103,79 CAD": "sorties resto/WE",
+  "EX-VOTO MONTREAL 58,64 CAD": "sorties resto/WE",
+  "POISSONNER MONTREAL 202,36 CAD": "sorties resto/WE",
+  "LS SAN GEN MONTREAL 11,69 CAD": "sorties resto/WE",
+  "SANSOTEI R MONTREAL 118,96 CAD": "sorties resto/WE",
+  "BRUNO SPOR MONTREAL 52,89 CAD": "sorties resto/WE",
+  "BONI-SOIR MONTREAL 94,04 CAD": "sorties resto/WE",
+  "SIAM CENTR MONTREAL 86,78 CAD": "sorties resto/WE",
+  "STM TB MOB MONTREAL 22,00 CAD": "sorties resto/WE",
+  "EXKI B ZAVENTEM": "alimentation de base",
+  "CGF17213PAUL2 LYON": "sorties resto/WE",
+  "MME CORINNE CAUCHARD OU": "shopping",
+  "TOTAL VILLETELLE": "sorties resto/WE",
+  "CAPELLA MILLAU": "sorties resto/WE",
+  "ZETTLE_*TRACE DE VILLAGES DU L": "sorties resto/WE",
+  "LES MINIMES GRENOBLE": "sorties resto/WE",
+  "MOL*TEMPLIERS EV 33565611508": "sorties resto/WE",
+  "BFA LYON": "shopping",
+  "PRINTEMPS LYON 2": "shopping",
+  "LA PASTA GOUJON MERCI": "alimentation de base",
+  "ZETTLE_*ADAPEI 6 LYON": "alimentation de base",
+  "COT' ET VIANDE TAPONAS": "alimentation de base",
+  "CEMA LYON LYON": "cantine",
+  "CARTA'JEU LYON 7EME": "shopping",
+  "MAXALANDRE CHARBONNIERES": "alimentation de base",
+  "KING JOUET VAULX EN VELI": "shopping",
+  "VERTBAUDET.FR TOURCOING": "shopping",
+  "LA POSTE L699270 LYON MONTCHAT": "shopping",
+  "WWW.LEXON-DESIGN PARIS": "shopping",
+  "SNCF INTERNET PARIS 10": "transports/voiture",
+  "STATION TOTAL PONT DE L ISER": "transports/voiture",
+  "LA BELLE BOUCLE LYON": "shopping",
+  "FNAC LYON CEDEX 02": "shopping",
+  "PONCET PATRICK IRIGNY": "alimentation de base",
+  "BEST BAGELS LYON": "vacances/WE en famille",
+  "PIGNOL LYON": "alimentation de base",
+  "MANGA RS LYON": "shopping",
+  "RELAIS DES CAVES LYON": "shopping",
+  "CAFE HOTEL DIEU LYON": "vacances/WE en famille",
+  "LES GLOUGLOUTONS LYON": "sorties resto/WE",
+  "AIR CAN014210475 PARIS": "vacances/WE en famille",
+  "RET DAB LYON MONTCHAT": "alimentation de base",
+  "ZARA FRANCE LYON 3": "shopping",
+  "NATH BOUDON FIN CONTRAT": "famille",
+  "SOLDE TOUS COMPTES NATH": "famille",
+  "JOYEUX ANNIVERSAIRE LEA": "shopping",
+  "SOLDE NATH CONGES PAYES": "famille",
+  "MENT CONGÉS NATH": "famille",
+  "SOLDE TOUT COMPTE NATH": "famille",
+  "URSSAF": "famille",
+  "GL BRON BRON": "shopping",
+  "FORF P.STAT WEB 35 RENNES": "transports/voiture",
+  "VAL D'OUEST VEND ECULLY": "santé",
+  "BOUCHERIE 3E LYON": "alimentation de base",
+  "OPTIQUE MONTCHAT LYON 3EME": "santé",
+  "DR PIERRILLAS ECULLY": "santé",
+  "DISTANCE LYON": "shopping",
+  "MOI FLEXITARIEN LYON": "sorties resto/WE",
+  "CULTURA ST PRIEST": "shopping",
+  "BISTROT BERTHET LYON": "cantine",
+  "DAC DMG DISTRIBU PONT SAINT ESP": "transports/voiture",
+  "SAVEURS L ILE VE LAUDUN L'ARDO": "alimentation de base",
+  "STATION AVIADAC PORTES LES VA": "transports/voiture",
+  "PATISSERIE JACQU LYON EME": "alimentation de base",
+  "ASSOCIATION ENVI LYON EME": "shopping",
+  "LES CONFITURES D RANRUPT": "alimentation de base",
+  "ANN CARTE LA REDOUTE ROUBAIX": "shopping",
+  "FERME DU ROCHAIL LE BOURG D'OI": "alimentation de base",
+  "SUMUP *LA COOPE VENOSC": "alimentation de base",
+  "UN ECRIN DE MIEL LE BOURG D OI": "alimentation de base",
+  "RET DAB BOURG D OISANS": "alimentation de base",
+  "RET DAB LES DEUX ALPE": "shopping",
+  "LA GUINGUETTE LES DEUX ALPE": "sorties resto/WE",
+  "CREMERIE ALPES LES DEUX ALPE": "alimentation de base",
+  "AGIP9961ISLE VOREPPE": "alimentation de base",
+  "Q PARK FRANCE ISSY LES MOUL": "transports/voiture",
+  "STATION AVIA L'ISLE D'ABEAU": "transports/voiture",
+  "RECU 4388469991S DE: SARL NOTAIRES FOCH": "frais notaire",
+  "CATICA AIGUES MORTES": "sorties resto/WE",
+  "341263RELAYSC NIMES": "alimentation de base",
+  "2THELOO NIMES NIMES": "transports/voiture",
+  "SARL BLOO LE GRAU DU RO": "shopping",
+  "CGF17304PAUL3 NIMES": "alimentation de base",
+  "L'ATELIER DU LEV LE GRAU DU RO": "alimentation de base",
+  "M PERRET LUDOVIC CAILLOUX SUR F": "alimentation de base",
+  "RET DAB LE GRAU DU RO": "sorties resto/WE",
+  "L'ANTRELOU LES DEUX ALPE": "vacances/WE en famille",
+  "M ET G SPORTS LES DEUX ALPE": "vacances/WE en famille",
+  "COMMUNE LES DEUX LES DEUX ALPE": "vacances/WE en famille",
+  "SKISET LES DEUX ALPE": "vacances/WE en famille",
+  "SAS LHASSA LES DEUX ALPE": "alimentation de base",
+  "PANIER MONTAGNAR LES DEUX ALPES": "alimentation de base",
+  "SHERPA MONT DE LANS": "alimentation de base",
+  "CHATEAU MUZELLE LES DEUX ALPE": "alimentation de base",
+  "RET DAB LES DEUX ALPES": "vacances/WE en famille",
+  "EURL GINETTE L2 LES DEUX ALPE": "vacances/WE en famille",
+  "MYRTILLES LES DEUX ALPE": "alimentation de base",
+  "SUMUP *AU JARDI VENOSC": "vacances/WE en famille",
+  "OISANS DISTRIBUT OULLES": "alimentation de base",
+  "PRIME VIDEO*ZU41 PRIMEVIDEO.FR": "abonnements divertissements",
+  "NOUNOU-TOP E14 9NN LO 7,98 EUR": "famille",
+  "CALAO 160 LE BOURG D'OI": "alimentation de base",
+  "PAIN BOLOGNE LE BOURG D OI": "alimentation de base",
+  "KLARNA*VARUSTE.N PARIS": "shopping",
+  "E.LECLERC VITRAC SUR MO": "transports/voiture",
+  "HRC38946TCORRE1 VITRAC SUR MO": "alimentation de base",
+  "HRC38945STBUCKS1 VITRAC SUR MO": "alimentation de base",
+  "SALINE 4 VENTS ST GEORGES D": "shopping",
+  "MANOA BEACH ST GEORGES D": "vacances/WE en famille",
+  "CYCL OLERON LA BREE LES B": "vacances/WE en famille",
+  "JARDINS D AURELI LA BREE LES B": "alimentation de base",
+  "LE GRAND PIERRE ST PIERRE D O": "vacances/WE en famille",
+  "LES GOURMANDISES ST GEORGES D O": "vacances/WE en famille",
+  "PORTE WEEKEND VERCORS": "sorties resto/WE",
+  "LA VOILE BLANCHE ST DENIS D OL": "vacances/WE en famille",
+  "LA POSTE 173230 ST DENIS OLER": "vacances/WE en famille",
+  "LE JARDIN LA JO ST GEORGES D": "alimentation de base",
+  "ZER LE CHATEAU D": "vacances/WE en famille",
+  "AUX JARDINS D A ST MEDARD D A": "alimentation de base",
+  "SUMUP *G.CERAMI DOLUS": "shopping",
+  "ZETTLE_*NICO MAT LE CHATEAU D": "vacances/WE en famille",
+  "LA COURTINE LE CHATEAU D'": "vacances/WE en famille",
+  "E LECLERC SAINT PIERRE": "alimentation de base",
+  "PECHERIES COTI ST PIERRE D O": "alimentation de base",
+  "BAUD SYLVAIN SAINT PIERRE": "alimentation de base",
+  "HUITRES NADEAU L DOLUS D'OLERO": "alimentation de base",
+  "COMMUNE DE LA RO LA ROCHELLE": "transports/voiture",
+  "BIMAG LA ROCHELL LA ROCHELLE": "vacances/WE en famille",
+  "SAS KREP'DES TOU LA ROCHELLE": "vacances/WE en famille",
+  "PHARMACIE DU MAR LA ROCHELLE": "santé",
+  "E LECLERC SAINT PIERRE D": "alimentation de base",
+  "CHAUSSURE ALAIN LA ROCHELLE": "shopping",
+  "SNC BETTE BASTIE ST GEORGES D": "vacances/WE en famille",
+  "CROISIERES INTER LA ROCHELLE": "vacances/WE en famille",
+  "AU GRE DU VENT ST GEORGES D": "vacances/WE en famille",
+  "LE SERPENT D'ETO DOLUS D OLERO": "vacances/WE en famille",
+  "LES GOURMANDISES ST GEORGES D": "vacances/WE en famille",
+  "FRIAUD JULIEN DOLUS D OLERO": "vacances/WE en famille",
+  "SA COOP ATLANTIQ ST DENIS DOLE": "alimentation de base",
+  "LA BUVETTE ST DENIS D OL": "vacances/WE en famille",
+  "DECATHLON OLERON SAINT PIERRE": "shopping",
+  "ZOO LA PALMYRE LES MATHES": "vacances/WE en famille",
+  "RET DAB SAINT DENIS D'O": "vacances/WE en famille",
+  "CHAFLONEA ST PIERRE D O": "vacances/WE en famille",
+  "LA FINE GOULE LE CHATEAU D": "vacances/WE en famille",
+  "POISSONNERIE NEG LE CHATEAU D": "alimentation de base",
+  "FERME 3 NOYERS ST SAVINIEN": "alimentation de base",
+  "COTE PHARE ST DENIS D OL": "vacances/WE en famille",
+  "COMMUNE DE SAINT SAINT DENIS D": "vacances/WE en famille",
+  "CARREFOUR CONTAC ST GEORGES D": "alimentation de base",
+  "AVIA MERLINES": "alimentation de base",
+  "BLIN AUTO VILLEURBANNE": "transports/voiture",
+  "STATION SERVICE COGNAC": "transports/voiture",
+  "FEU VERT VENISSIEUX": "transports/voiture",
+  "RET DAB ST PIERRE D OL": "vacances/WE en famille",
+  "RACINE RESTAURAN LYON": "cantine",
+  "MRS RA 401 VILLA LYON": "cantine",
+  "IKEA GRENOBLE SAINT MARTINS": "shopping",
+  "RELAY 342717SV AVIGNON": "transports/voiture",
+  "JULIE RENARD 15 07": "vacances/WE en famille",
+  "CYCLE OLERON 15 07": "vacances/WE en famille",
+  "HOTEL ENGILBERGE VALLOUISE PEL": "sorties resto/WE",
+  "LPA LYON": "transports/voiture",
+  "LES NUITS DE FOU LYON 5EME": "sorties resto/WE",
+  "LE SAMBAHIA LYON": "sorties resto/WE",
+  "CUGINI JONAGE": "sorties resto/WE",
+  "MIMO LYON": "sorties resto/WE",
+  "CARREFOUR DAC VL BAGNOLS SUR C": "transports/voiture",
+  "SARL TRESACOIS CONNAUX": "alimentation de base",
+  "BABY JUNIOR BAGNOLS SUR C": "shopping",
+  "RODRIGUEZ TRESQUES": "alimentation de base",
+  "COMBI ET ROBE": "shopping",
+  "ECG15909STARBUC LYON": "transports/voiture",
+  "MARIE BLACHERE PONT SAINT ES": "transports/voiture",
+  "BURGER KING BAGNOLS SUR C": "sorties resto/WE",
+  "CABINET DU DR BR CHASSELAY": "santé",
+  "DECATHLON 0071 ST EGREVE": "shopping",
+  "COTISATION QUIETIS RENOUV. DU AU": "frais bancaires",
+  "DYNEFF DAC SLC SAULCE SUR RH": "transports/voiture",
+  "MGP*VINTED 99260 VILNIUS": "shopping",
+  "RET DAB BAGNOLS": "sorties resto/WE",
+  "LA MALLE FRANCAI PARIS 11": "shopping",
+  "ANN CARTE SNCF INTERNET PARIS 10": "transports/voiture",
+  "AMZN MKTP FR*HM2 AMAZON.FR": "shopping",
+  "CASTORAMA BOURG EN BRES": "shopping",
+  "CARREFOUR MARKE ST ANDRE DE C": "alimentation de base",
+  "ADEO*LEROY MERLI TASSIN-LA-DEM": "shopping",
+  "QUICK LE PUY EN VEL": "sorties resto/WE",
+  "LE REPOS DU PELE MONISTROL D A": "sorties resto/WE",
+  "NOTAIRES DBTB LYON CEDEX 06": "frais notaire",
+  "BESSON LYON LA P LYON 3EME": "shopping",
+  "LES ATELIERS LYON": "shopping",
+  "RUE DUGUESCLIN LIMONEST": "shopping",
+  "ECHEANCE PRET N∞824026947382 FRAIS DE DOSSIER": "frais bancaires",
+  "ALMA SNOWLEADER NEUILLY-SUR-S": "shopping",
+  "LA SOMMELIERE LYON 5EME": "sorties resto/WE",
+  "TOP-ASSMAT E14 9NN LO 7,98 EUR": "abonnements divertissements",
+  "REVOLUT**1606* DUBLIN": "épargne",
+  "AIRBNB * HMRQDPZ 38-4000": "sorties resto/WE",
+  "SIGPAS LYON": "famille",
+  "MR YANN GOUJON": "sorties resto/WE",
+  "DELICES DE STEPH LA CHAPELLE E": "alimentation de base",
+  "M.OU MME MARESCHAL DE C": "sorties resto/WE",
+  "WEEKEND POLE DU CHEVAL": "sorties resto/WE",
+  "WEEKEND VERCORS ET TOMB": "sorties resto/WE",
+  "INTERMARCHE VL VILLARD DE LAN": "transports/voiture",
+  "OL VALLEE ARENA DECINES CHARP": "sorties resto/WE",
+  "MGP*VINTED 95570 L-1125 LUXEMB": "shopping",
+  "DOMAINE DE BIAR LAVERUNE": "sorties resto/WE",
+  "GRAULIERE NATHAL REMOULINS": "shopping",
+  "DS CASANOVA MONTPELLIER": "sorties resto/WE",
+  "TISSPARK FACILIT MONTPELLIER": "sorties resto/WE",
+  "ESSO ST FONS POR SAINT FONS": "transports/voiture",
+  "SMALLABLE.COM PARIS": "shopping",
+  "ARMADA LYON 5EME": "sorties resto/WE",
+  "CADEAU SIMON ET ODILE": "sorties resto/WE",
+  "DAC SA LIGNIERIS LIGNIERES": "vacances/WE en famille",
+  "LE POT COMMUN PARIS": "shopping",
+  "S CONTACT CARREF LIGNIERES": "alimentation de base",
+  "POLE CHEVAL ET A LIGNIERES": "vacances/WE en famille",
+  "TOTAL ORLEAT": "transports/voiture",
+  "ANN CARTE VEEPEE SAINT-DENIS": "shopping",
+  "COURSE WEEKEND CAMPING": "sorties resto/WE",
+  "HPY*EKOSPORT SAINT-ALBAN-LE": "shopping",
+  "DIET SPORT ENERG LES HOUCHES": "shopping",
+  "LE SLIP FRANCAIS 75002 PARIS": "shopping",
+  "CASINOCARBSS226 LE BOURG D OI": "transports/voiture",
+  "BOUCHERIE CHARCU LYON 3EME": "alimentation de base",
+  "PRIME VIDEO*HC64 PRIMEVIDEO.FR": "abonnements divertissements",
+  "SVBC LES DEUX ALPE": "sorties resto/WE",
+  "MLLE LEA CAUCHARD": "shopping",
+  "L ESPADON SAINT BONNET": "alimentation de base",
+  "SEZANE PARIS": "shopping",
+  "24S.COM FR PARIS": "shopping",
+  "ANN CARTE ASPHALTE LUXEMBOURG": "shopping",
+  "AMAZON.FR*HG3S72 AMAZON.FR": "shopping",
+  "BITWARDEN SANTA BARB 10,00 USD": "abonnements divertissements",
+  "ASPHALTE LUXEMBOURG": "shopping",
+  "TABAC LE CENTRAL ANNECY": "sorties resto/WE",
+  "AU BAVAROIS ANNECY": "sorties resto/WE",
+  "AIRBNB * HMBZEM2 38-4000": "sorties resto/WE",
+  "CYBEX BAYREUTH": "shopping",
+  "SAS LAUDUN DISTR LAUDUN": "alimentation de base",
+  "GREECE 14 CHASSE-SUR-RH": "transports/voiture",
+  "NINTENDO CA11971 FRANKFURT AM": "shopping",
+  "RET DAB CONNAUX": "sorties resto/WE",
+  "EPARGNE MAI": "épargne",
+  "SUMUP *MASAGA S LYON": "sorties resto/WE",
+  "LUNII SAS PARIS": "abonnements divertissements",
+  "RET DAB VENISSIEUX PAL": "shopping",
+  "SOLDE REGLEMENTAIRE LIVRET A": "épargne",
+  "SC ALLEGRET SAV LAUDUN L ARDO": "alimentation de base",
+  "REMBOURSEMENT VIN JULIEN F": "shopping",
+  "BOURGOGNE FOULIARD": "shopping",
+  "INTERMARCHE VILLEURBANNE": "alimentation de base",
+  "STVI VAL D'ISERE": "sorties resto/WE",
+  "CHEVALLIER BOURG SAINT M": "sorties resto/WE",
+  "JARDINERIE BAGNO BAGNOLS SUR C": "shopping",
+  "LA TABACTIERE LYON EME": "shopping",
+  "PAELLA ANNIV GASPARD": "sorties resto/WE",
+  "CHAMBRE GOUJON 10ANS DE": "sorties resto/WE",
+  "F COTISATION A UNE OFFRE D' ASSURANCE PERTE OU VOL": "assurances",
+  "WEEKEND RAID ARDECHE": "sorties resto/WE",
+  "STATION INTER BAGNOLS SUR CE": "transports/voiture",
+  "GBC MONTAGNE BOURG ST MAU": "sorties resto/WE",
+  "INTERMARCHE GAUJAC": "alimentation de base",
+  "MONTI SPORT BAGN BAGNOLS SUR C": "sorties resto/WE",
+  "RET DAB LYON MONTCHAT D": "sorties resto/WE",
+  "BRIOCHE DOREE PARIS 12": "cantine",
+  "DR HEDNA VENISSIEUX": "santé",
+  "MAXICOFFEE ARA NEYRON": "alimentation de base",
+  "OKAIDI FRANCE PARIS LA DEFE": "shopping",
+  "RATP PARIS": "transports/voiture",
+  "JIN YUN PARIS": "cantine",
+  "PROMESSE VENTE MASCAUX GOUJO": "frais notaire",
+  "SEPHORA 2752 PARIS": "shopping",
+  "CITADINES SC PARIS 13": "cantine",
+  "TRR21 PARIS": "alimentation de base",
+  "RELAY340679SV LYON": "cantine",
+  "BOULANGERIE PARIS": "cantine",
+  "00077579901 VILLEURBANNE": "cantine",
+  "RET DAB LCL LYON SAINT": "transports/voiture",
+  "ALLTRICKS MAUREPAS": "shopping",
+  "GOUJON/CAUCHARD 02 04 SG 01204 CPT 00051000009": "épargne",
+  "MEERT TRADITION LILLE": "sorties resto/WE",
+  "CCG17813PAUL2 LILLE": "sorties resto/WE",
+  "EPARGNE AVRIL": "épargne",
+  "LE PC RONCHIN": "sorties resto/WE",
+  "NEWREST WAGONS L PARIS": "sorties resto/WE",
+  "RELAY340733SC LYON": "cantine",
+  "BOTANIC SAINT PRIEST": "shopping",
+  "TOP-ASSMAT E14 9NN LO 46,78 EUR": "famille",
+  "TOP ASSMAT": "famille",
+  "ALMA LE SLIP FRA 92200 NEUILLY-": "shopping",
+  "GOUJON CHLOE 12 03": "famille",
+  "LYDIA APP PARIS": "sorties resto/WE",
+  "SUPER U VINAY": "sorties resto/WE",
+  "DECLICLUDIK LYON LYON 3EME": "shopping",
+  "BARBER CITY 69 LYON EME": "shopping",
+  "LE TABAGNON DU 6 LYON 6EME": "sorties resto/WE",
+  "MGP*VINTED PURC0 L-1125 LUXEMB": "shopping",
+  "GOUJON/CAUCHARD 06 03 SG 01204 CPT 00051000009": "épargne",
+  "SNC ALLEGRE TRESQUES": "alimentation de base",
+  "BOULANGERIE CROISSANT CHLOE": "cantine",
+  "MRS MARS": "cantine",
+  "TERRES LYONNAISES": "alimentation de base",
+  "KLARNA VEEPEE PARIS": "shopping",
+  "CAFE DES CEVENNE LE VIGAN": "alimentation de base",
+  "POLE ANE CHEVAL": "sorties resto/WE",
+  "CARREFOUR MARKET": "alimentation de base",
+  "ANNABELLE": "sorties resto/WE",
+  "PETITSCULOTTES PARIS 8": "alimentation de base",
+  "TOTAL PONT DE L ISE": "transports/voiture",
+  "STATION AVIA L'ISLE D'ABEA": "transports/voiture",
+  "BOULANGERIE": "alimentation de base",
+  "MAISON BALL LYON": "alimentation de base",
+  "EPARGNE MRS": "épargne",
+  "CLC STUDIO": "shopping",
+  "ENTRETIEN POMPE A CHAL": "factures énergie/eau",
+  "AMAZON.FR*8Q6PE9 AMAZON.FR": "shopping",
+  "EPARGNE FEV": "épargne",
+  "LSP*DOUMES LODGE LES 2 ALPES": "vacances/WE en famille",
+  "MGP*VINTED 86080 L-1125 LUXEMB": "shopping",
+  "LE PAPE SALOMON CHLOÉ": "shopping",
+  "FORFAITS SKI SATA 2 ALPES": "vacances/WE en famille",
+  "PHARMACIE DU GLA LES DEUX ALPE": "santé",
+  "SHERPA VENOSC": "alimentation de base",
+  "DEEZER SA": "abonnements divertissements",
+  "KANT PRESSE LES DEUX ALPE": "vacances/WE en famille",
+  "HOTEL LES MELEZ VENOSC": "vacances/WE en famille",
+  "COTE BRUNE MONT DE LANS": "vacances/WE en famille",
+  "REST SCOL CB NET 69": "famille",
+  "LA FROMAGERIE LES DEUX ALPE": "alimentation de base",
+  "LES COULEURS DU LYON 3EME": "shopping",
+  "BYMYCAR LYON LYON EME": "transports/voiture",
+  "JOYEUX NOEL A VOUS GOUJ": "shopping",
+  "BC COIFFURE LYON 9EME": "shopping",
+  "JJCD SONNAY": "alimentation de base",
+  "ALMA NEUILLY-SUR-S": "shopping",
+  "STE D EXPLOITATI BAGNOLS SUR C": "alimentation de base",
+  "SJR LABELS TOULOUSE": "famille",
+  "LE BISTROT D AL VILLEURBANNE": "cantine",
+  "AMAZON.FR*0V30G8 AMAZON.FR": "shopping",
+  "RELAY 342733SC AVIGNON": "cantine",
+  "2THELOO GARE TGV AVIGNON": "transports/voiture",
+  "NSM BOURG VIRIAT": "shopping",
+  "ONDET CHRISTIAN ATTIGNAT": "alimentation de base",
+  "KLARNA PARIS": "shopping",
+  "AMAZON.FR*DT1LL4 AMAZON.FR": "shopping",
+  "CPAM HAUTS DE SEINE SEPA": "santé",
+  "MGP*VINTED 83580 L-1125 LUXEMB": "shopping",
+  "LA BIGOUDINE GRENOBLE": "sorties resto/WE",
+  "GARAGE JOUBERT AUTRANS MEAUD": "transports/voiture",
+  "COMMUNE DE LANS LANS EN VERCO": "vacances/WE en famille",
+  "AB SPORTS SC LANS EN VERCO": "vacances/WE en famille",
+  "LES JASSINETS LANS EN VERCO": "vacances/WE en famille",
+  "ESF LANS VERCORS LANS EN VERCO": "vacances/WE en famille",
+  "LE COMPTOIR AUTRANS MEAUD": "vacances/WE en famille",
+  "CEDRIC WE VERCORS": "vacances/WE en famille",
+  "TEEWAX LUXEMBOURG": "shopping",
+  "COMPOZ BREWING LA MEZIERE": "shopping",
+  "ESF PLAGNE CENTR LA PLAGNE TAR": "sorties resto/WE",
+  "SICA DU REPLAT AIME LA PLAGN": "sorties resto/WE",
+  "LE SOLAN PEISEY NANCRO": "sorties resto/WE",
+  "LE P TIT BO BAR LA PLAGNE TAR": "sorties resto/WE",
+  "S A P LA PLAGNE TAR": "sorties resto/WE",
+  "SHERPA BOAM LA PLAGNE TAR": "sorties resto/WE",
+  "BOULANGERIE DE L LA PLAGNE TAR": "sorties resto/WE",
+  "SARL ADHP MACOT LA PLAG": "sorties resto/WE",
+  "ADS SDV PV BOURG ST MAUR": "sorties resto/WE",
+  "AMAZON.FR*6T8QV9 AMAZON.FR": "shopping",
+  "VACANCES OLERON": "vacances/WE en famille",
+  "SIPRES LYON": "sorties resto/WE",
+  "MEL ET CHLO POUR CADEAU": "shopping",
+  "AIRBNB * HMY8PK3 38-4000": "vacances/WE en famille",
+  "LES 4G GENAY": "cantine",
+  "MGP*VINTED 81880 L-1125 LUXEMB": "shopping",
+  "AMAZON PRIME*347 AMAZON.FR/PRI": "abonnements divertissements",
+  "AMAZON.FR*9S90O1 AMAZON.FR": "shopping",
+  "AMZN MKTP FR*DR4 AMAZON.FR": "shopping",
+  "PHENECIA LYON": "sorties resto/WE",
+  "GLAFAYETTE.COM PARIS2500830/": "shopping",
+  "AMZN MKTP FR*HF8 AMAZON.FR": "shopping",
+  "MGP*VINTED 81090 L-1125 LUXEMB": "shopping",
+  "AMZN MKTP FR*ZW4 AMAZON.FR": "shopping",
+  "LA POSTE BOUTIQU PARIS": "shopping",
+  "MARIE BLACHERE BAGNOLS SUR C": "alimentation de base",
+  "KIABI BAGNOLS SUR C": "shopping",
+  "ORCHESTRA NEW BAGNOLS SUR C": "shopping",
+  "PHIE PREISS BAGNOLS SUR C": "santé",
+  "TOTAL CHARMES SUR R": "transports/voiture",
+  "ESSO ST FONS POR SAINT 560489/": "transports/voiture",
+  "CHEQUE GOUJON NOEL": "salaires",
+  "GL LYON LYON 3EME": "shopping",
+  "AMAND'DOUCE LYON": "shopping",
+  "LA POSTE 699270 LYON MONTCHAT": "shopping",
+  "LA BELLE BO 0757819537": "shopping",
+  "L AGASTACHE LYON EME": "sorties resto/WE",
+  "LA POSTE.FR PARIS CEDEX 15": "shopping",
+  "MGP*VINTED 80260 L-1125 LUXEMB": "shopping",
+  "SHIXIA LYON": "cantine",
+  "GOODIZ SARL 92300 LEVALLOI": "shopping",
+  "CIRQUE IMAGINE VAULX EN VELIN": "sorties resto/WE",
+  "CADEAU LOU THEO": "shopping",
+  "LA CARRETILLA ST GILLES": "sorties resto/WE",
+  "RELAIS AUTOROUTI PONT DE L'ISER": "transports/voiture",
+  "DOTT WALLET TOP AMSTERDAM": "transports/voiture",
+  "BELLEROSE BELGIU 1702 DILBEEK G": "shopping",
+  "HPY*NATURE ET DE PARIS 12": "shopping",
+  "L'ODYSSEE DES CO LYON 9EME": "shopping",
+  "L ANTIQUAIRE LYON": "sorties resto/WE",
+  "BEL AMI LYON": "sorties resto/WE",
+  "TEMPLIERS EVENT MILLAU": "sorties resto/WE",
+  "CADEAU MANOU": "shopping",
+  "AMAZON.FR*4I85C0 AMAZON.FR": "shopping",
+  "POLE POSITION 69 LYON": "transports/voiture",
+  "AMAZON.FR*LS50H1 AMAZON.FR": "shopping",
+  "AMAZON.FR*Z793F1 AMAZON.FR": "alimentation de base",
+  "QUIMPORTE LA SAI LYON 3EME": "shopping",
+  "ASPHALTE.COM BORDEAUX": "shopping",
+  "AMAZON.FR*942T45 AMAZON.FR": "shopping",
+  "SHELL 3301 DAGNEUX": "transports/voiture",
+  "PALM LYON": "sorties resto/WE",
+  "RET DAB LYON": "alimentation de base",
+  "POURDEBON PARIS": "alimentation de base",
+  "GITES PREJEURIN ECHALAS": "alimentation de base",
+  "BLUNDSTONE-FRANC MALAKOFF": "shopping",
+  "CADEAU MEL": "shopping",
+  "CADEAU MAMAN": "shopping",
+  "CADEAU THOMAS ET PAPA": "shopping",
+  "MGP*VINTED 78720 L-1125 LUXEMB": "shopping",
+  "MGP*VINTED 78340 L-1125 LUXEMB": "shopping",
+  "BFA LYON 2EME": "shopping",
+  "AUT.MAISONNEUVE BELLEVILLE-EN": "sorties resto/WE",
+  "OUTDOOR ORGANIC ANNECY": "sorties resto/WE",
+  "SUMUP *ATHLETES PALAISEAU": "sorties resto/WE",
+  "MGP*VINTED 78330 L-1125 LUXEMB": "shopping",
+  "SANTOSHA VAISE LYON EME": "cantine",
+  "TIGERMILK LYON LYON": "sorties resto/WE",
+  "CHEQUE GOUJON REMB LV": "shopping",
+  "NDF TENACY (CLEWO)": "salaires",
+  "LA VIE CLAIRE LYON": "alimentation de base",
+  "DELICES DE DOUME CAROMB": "vacances/WE en famille",
+  "S3A CAROMB": "vacances/WE en famille",
+  "LUMYS PHOTO BASSE GOULAINE": "famille",
+  "DAC S3A CAROMB": "vacances/WE en famille",
+  "BOUCHERIE FARNAU CAROMB": "vacances/WE en famille",
+  "SARL MTT CAROMB CAROMB": "vacances/WE en famille",
+  "MAUDE L WE VENTOUX": "vacances/WE en famille",
+  "MGP*VINTED 77210 L-1125 LUXEMB": "shopping",
+  "PODOLOGUE PICAUL LYON 9": "santé",
+  "AMZN MKTP FR*HI7 AMAZON.FR": "shopping",
+  "LE PETIT CASINO LYON": "alimentation de base",
+  "ANN CARTE LE SLIP FRANCAIS PARIS": "shopping",
+  "WWW.NUDIENT.COM STOCKHOLM": "shopping",
+  "SP STRAPHA POWELL 41,00 USD": "shopping",
+  "FOURNIL VIGNES THEIZE": "alimentation de base",
+  "LA HALLE TONY GA LYON 7": "sorties resto/WE",
+  "AMAZON.FR*HB8Y53 AMAZON.FR": "shopping",
+  "HENRI ET SEBAST LYON": "alimentation de base",
+  "MGP*VINTED EXS 0 L-1125 LUXEMB": "shopping",
+  "AMZN MKTP FR*HB9 AMAZON.FR": "shopping",
+  "LA REDOUTE FR ROUBAIX": "shopping",
+  "AMAZON.FR*H20DB2 AMAZON.FR": "alimentation de base",
+  "SARL M FIT CENTER": "abonnements sports",
+  "MONDIAL RELAY HEM": "shopping",
+  "SECURSUS 92200 NEUILLY-": "shopping",
+  "RELAIS DAGNEUX DAGNEUX": "transports/voiture",
+  "DR SOUSSAN ERIC VILLEURBANNE": "santé",
+  "WWW.FINISHERS.CO LYON": "shopping",
+  "PATHE CINEMAS FR PARIS": "sorties resto/WE",
+  "PATHE CARRE DE S VAULX EN VELI": "sorties resto/WE",
+  "AMAZON.FR*H23MW1 AMAZON.FR": "shopping",
+  "AMAZON.FR*H284U8 AMAZON.FR": "shopping",
+  "SARENZA 92 CLICHY": "shopping",
+  "SARL REL PONT CE BAGNOLS SUR CE": "transports/voiture",
+  "AMAZON.FR*H23966 AMAZON.FR": "shopping",
+  "LSP*FOOD SOCIETY LYON": "sorties resto/WE",
+  "ZARA LE PONTET": "shopping",
+  "AUCHAN LE PONTE LE PONTET": "alimentation de base",
+  "AMAZON.FR*H286D0 AMAZON.FR": "shopping",
+  "OH MY CREAM 75007 PARIS": "shopping",
+  "ANN CARTE ASPHALTE.COM BORDEAUX": "shopping",
+  "REMB CARTE SEZANE PARIS": "shopping",
+  "SELECTA SAS LE BOURGET": "sorties resto/WE",
+  "TABAC PRESSE ANJ BAGNOLS SUR C": "shopping",
+  "SC AUX FILS D'I BAGNOLS SUR C": "shopping",
+  "RACINE LYON": "cantine",
+  "MR ADLER THOMAS": "shopping",
+  "CROUTON SAS LYON": "sorties resto/WE",
+  "UBER PAYMENTS B. AMSTERDAM": "transports/voiture",
+  "FUFU RAMEN LYON 1ER": "sorties resto/WE",
+  "AMZN MKTP FR*H08 AMAZON.FR": "shopping",
+  "MGP*VINTED 74050 L-1125 LUXEMB": "shopping",
+  "SHOEZ GALLERY LYON": "shopping",
+  "VANS BIARRITZ PARIS": "shopping",
+  "BAT D'ARGENT LYON": "sorties resto/WE",
+  "OPERA DE LYON LYON 01": "sorties resto/WE",
+  "LA PASSAGERE LYON": "sorties resto/WE",
+  "BIOLOCO LYON EME": "alimentation de base",
+  "SNC L EAU VIVE LYON": "alimentation de base",
+  "DI GASPERO DENIS SAINT JEAN DE": "alimentation de base",
+  "MGP*VINTED 73610 L-1125 LUXEMB": "shopping",
+  "AMZN MKTP FR*H82 AMAZON.FR": "shopping",
+  "S.L.T.C. LYON": "transports/voiture",
+  "ZETTLE_*MOCHICAS LYON": "sorties resto/WE",
+  "L ARISTO 2 LYON": "sorties resto/WE",
+  "COMPTOIR 41 LYON": "sorties resto/WE",
+  "MAUDE LABORIE": "sorties resto/WE",
+  "BONNAV GOUJON VIVE LES": "sorties resto/WE",
+  "PANEO BRON": "alimentation de base",
+  "DELILLE CHAMROEN": "sorties resto/WE",
+  "MARIAGE MIERZ": "sorties resto/WE",
+  "DOMAINE DU GOLF ST RAPHAEL": "sorties resto/WE",
+  "IKKS PARIS": "shopping",
+  "PIERRE HERME LYON": "sorties resto/WE",
+  "RELAY340695SV LYON": "sorties resto/WE",
+  "ANN CARTE SHOP.EDWIN-EUROP WEIL AM RHEIN": "shopping",
+  "VERSEMENT INITIAL LDD": "épargne",
+  "SAS SUPER U MONTLUEL": "transports/voiture",
+  "ASS SPORT DANS L LYON": "shopping",
+  "AMAZON.FR*1K92M2 AMAZON.FR": "shopping",
+  "AU GOULOT ! LYON": "shopping",
+  "O KYPOS LYON 9EME": "cantine",
+  "SHOP.EDWIN-EUROP WEIL AM RHEIN": "shopping",
+  "COLIZEY* P991482 VERSAILLES": "shopping",
+  "ALIX SARL LYON 7EME": "sorties resto/WE",
+  "PRIVATESPORTSHOP VENDARGUES": "shopping",
+  "LYDIA*APP PARIS": "sorties resto/WE",
+  "RAMEN DJIZAN LYON 7": "sorties resto/WE",
+  "VP.COM LEVALLOIS PERR": "alimentation de base",
+  "ECOX LYON 6EME": "transports/voiture",
+  "RELAY 349571SC VALENCE CEDEX": "sorties resto/WE",
+  "PABLO ROMERO NIMES": "sorties resto/WE",
+  "MAISON ALBAR IMP NIMES": "sorties resto/WE",
+  "CARREFOUR CITY NIMES": "sorties resto/WE",
+  "SNC LA HAVANE NIMES": "sorties resto/WE",
+  "HUILERIE RICHARD MONTOISON": "alimentation de base",
+  "DANS MON JAR DAI BRESSE VALLON": "alimentation de base",
+  "RELAY 340729SC COLOMBIER SAU": "sorties resto/WE",
+  "SPODE LYON": "shopping",
+  "ALMARO LYON EME": "alimentation de base",
+  "SC PHCIE DES AR NIMES": "santé",
+  "SUPER U LYON": "alimentation de base",
+  "ANNULATION CARTE ASPHALTE.COM BORDEAUX": "shopping",
+  "LYDIA*APP 137 RUE D'ABOU": "shopping",
+  "VEEPEE FR SAINT-DENIS": "shopping",
+  "AMZN MKTP FR*140 AMAZON.FR": "shopping",
+  "UBR* PENDING.UBE AMSTERDAM": "sorties resto/WE",
+  "UBER *TRIP AMSTERDAM": "sorties resto/WE",
+  "SPORT TICKETING BIDART": "sorties resto/WE",
+  "PTT LYON HERRIOT LYON": "shopping",
+  "SNC AMILIE LYON": "sorties resto/WE",
+  "ROYAL RACER LYON 2EME": "shopping",
+  "SAS MULTIMARKE ECULLY": "alimentation de base",
+  "SAVEURS ST EX COLOMBIER SAU": "alimentation de base",
+  "CAP 6 LYON 2EME": "alimentation de base",
+  "VIREMENT LOGEMENT MARIA": "sorties resto/WE",
+  "CROSSIFT": "abonnements sports",
+  "LE CHAUDRON CHAMONIX MONT": "sorties resto/WE",
+  "COMITES DES FETE VALLORCINE": "sorties resto/WE",
+  "EDITIONS PAULSEN CHAMONIX-MONT": "shopping",
+  "MOHMAT ANNECY": "sorties resto/WE",
+  "CHALET 4810 CHAMONIX MONT": "sorties resto/WE",
+  "JOSEPHINE CHAMONIX MONT": "sorties resto/WE",
+  "COOP-4514 SEMBRANCHE 14,45 CHF": "sorties resto/WE",
+  "LE CABANON CHAMPEX-LA 13,00 CHF": "sorties resto/WE",
+  "SUMUP *CO TRIENT 8,00 CHF": "sorties resto/WE",
+  "VALLEIRY VALLEIRY": "sorties resto/WE"
+};
+
+// Level 2: keyword rules
+const KW_RULES = [
+  // ALIMENTATION
+  {kw:['CARREFOUR','LECLERC','INTERMARCHE','LIDL','ALDI','MONOPRIX','FRANPRIX','CASINO ','AUCHAN','BIOCOOP','NATURALIA','PICARD','GRAND FRAIS','SUPER U','BOULANGERIE','BOUCHERIE','PRIMEUR','EPICERIE','SPAR ','CORA ','NETTO ','ED ','MATCH ','LEADER PRICE','SUPER BIO','FERME','MARCHE '], cat:'alimentation de base'},
+  // TRANSPORTS
+  {kw:['TOTAL ENERGIE','TOTALENERGIE','SHELL','ESSO','RATP','SNCF','TRANSILIEN','OUIGO','NAVIGO','VELIB','UBER','BOLT','TAXI','BIP&GO','BIPANDGO','VINCI','SANEF','ESCOTA','AUTOROUTE','PARKING','STATION ESSENCE','STATION SERVICE','CARBURANT','SUPERETHANOL'], cat:'transports/voiture'},
+  // ASSURANCES
+  {kw:['AXA','MAIF','MACIF','MATMUT','GMF','ALLIANZ','SWISS LIFE','SWISSLIFE','SOGESSUR','LUKO','APRIL','GENERALI','GROUPAMA','MMA ','PREVOYANCE','ASSURANCE','MUTUELLE','MAF '], cat:'assurances'},
+  // PRETS IMMO
+  {kw:['CREDIT FONCIER','CREDIT IMMOB','PRET IMMO','ECHEANCE PRET','REMB PRET'], cat:'prêts immo'},
+  // ENERGIE
+  {kw:['EDF','ENGIE','DIRECT ENERGIE','ILEK','PLANETE OUI','VEOLIA','SAUR','SUEZ','EAU DE PARIS','ELECTRICITE','GAZ DE FRANCE','TOTAL GAZ'], cat:'factures énergie/eau'},
+  // SANTE
+  {kw:['PHARMACIE','MEDECIN','DR ','DENTISTE','HOPITAL','CLINIQUE','OPTICIEN','OPTIQUE','KINE','OSTEO','PSYCHO','INFIRM','LABORATOIRE','RADIOLOGIE','SCANNER','CPAM','AMELI','MEDECINE'], cat:'santé'},
+  // FAMILLE
+  {kw:['MONEY WALKIE','MONEYWALKIE','CRECHE','GARDERIE','NOURRICE','BABYSIT','AU PAIR','ASSISTANTE MATERNELLE'], cat:'famille'},
+  // CANTINE
+  {kw:['CANTINE','RESTAURATION SCOLAIRE','TICKET RESTO','TITRES RESTO'], cat:'cantine'},
+  // FRAIS BANCAIRES
+  {kw:['FORTUNEO','FRAIS BANCAIRE','COTISATION CARTE','AGIOS','INTERETS DEBIT'], cat:'frais bancaires'},
+  // MENAGE
+  {kw:['IKEA','LEROY MERLIN','CASTORAMA','BRICOMARCHE','BRICORAMA','BRICODEPOT','BUT ','MAISON DU MONDE','HABITAT ','JARDINERIE','TRUFFAUT','GAMM VERT'], cat:'ménage'},
+  // SORTIES RESTO
+  {kw:['RESTAURANT','BRASSERIE','BISTROT','BISTRO','PIZZA','KEBAB','SUSHI','BURGER','MCDONALDS','KFC','QUICK ','SUBWAY','DOMINOS','DELIVEROO','UBER EATS','JUST EAT','BAR ','PUB ','BRASSERIE','TAVERNE','AUBERGE','CREPERIE','STEAKHOUSE','STEAK HOUSE'], cat:'sorties resto/WE'},
+  // SHOPPING
+  {kw:['ZARA','H&M','PRIMARK','UNIQLO','GAP ','MANGO','AMAZON','CDISCOUNT','FNAC','DARTY','BOULANGER','APPLE STORE','SAMSUNG','VINTED','LEBONCOIN','SHEIN','ASOS','ZALANDO','KIABI','SEPHORA','MARIONNAUD','NOCIBE','PARFUMERIE','SPORT 2000','GO SPORT'], cat:'shopping'},
+  // VACANCES
+  {kw:['BOOKING','AIRBNB','ABRITEL','GITE ','HOTEL','CAMPING','CLUB MED','TUI ','VOYAGE','VACANCES','EASYJET','RYANAIR','AIR FRANCE','VUELING','TRANSAVIA','CORSAIR','AEROPORT','AIRPORT'], cat:'vacances/WE en famille'},
+  // SPORTS
+  {kw:['DECATHLON','BASIC FIT','BASIC-FIT','FITNESS','SALLE DE SPORT','COACHING','TENNIS','NATATION','PISCINE','YOGA','PILATES','CROSSFIT'], cat:'abonnements sports'},
+  // DIVERTISSEMENTS
+  {kw:['NETFLIX','SPOTIFY','DISNEY+','DISNEY PLUS','APPLE TV','AMAZON PRIME','CANAL+','CANAL PLUS','DEEZER','YOUTUBE','TWITCH','STEAM','PLAYSTATION','XBOX','NINTENDO','CINEMA','THEATRE','CONCERT','DISNEYLAND','LEGO'], cat:'abonnements divertissements'},
+  // COURSES NON ESS
+  {kw:['ALICE DELI','NON ESSENTIEL'], cat:'courses non essentielles'},
+  // EPARGNE
+  {kw:['ASSURANCE VIE','LDDS','LIVRET A','LIVRET ','PEL ','PEA ','EPARGNE','PLACEMENT'], cat:'épargne'},
+  // REVENUS
+  {kw:['VIREMENT RECU','VIREMENT EN VOTRE FAVEUR'], cat:'remboursements'},
+  {kw:['CAF ','ALLOCATIONS FAMILIALES','AIDE AU LOGEMENT','APL '], cat:'CAF'},
+];
+
+const ACCOUNT_COLORS = {
+  'CB Yann':                 '#3B82F6',
+  'CB Chloé':                '#EC4899',
+  'Compte commun Fortuneo':  '#10B981',
+  'Compte SG':               '#F59E0B',
+};
+
+// =====================================================================
+// STATE
+// =====================================================================
+const state = {
+  transactions: [],    // raw all
+  filtered: [],        // after filters
+  page: 1,
+  pageSize: 50,
+  sort: { key: 'date', dir: -1 },
+  filters: { start:'', end:'', account:'all', macro:'all', subcat:'all', search:'' },
+  charts: {},
+  chartFilter: null,   // { type, value } when clicking a chart
+  // Review queue: unknown merchants
+  reviewQueue: [],     // { merchant, count, examples }
+  reviewDecisions: {}, // merchant -> category
+  pendingImport: null  // { text, format, filename }
+};
+
+let pendingImport = null;
+
+// =====================================================================
+// STORAGE
+// =====================================================================
+function save() {
+  try {
+    localStorage.setItem('bf_tx', JSON.stringify(state.transactions));
+    localStorage.setItem('bf_mrules', JSON.stringify(MERCHANT_RULES));
+  } catch(e) { console.warn('localStorage full, skipping save'); }
+}
+
+function load() {
+  try {
+    const tx = localStorage.getItem('bf_tx');
+    if (tx) state.transactions = JSON.parse(tx);
+    const mr = localStorage.getItem('bf_mrules');
+    if (mr) Object.assign(MERCHANT_RULES, JSON.parse(mr));
+  } catch(e) {}
+}
+
+// =====================================================================
+// CATEGORIZATION
+// =====================================================================
+function normalizeMerchant(label) {
+  let s = label.toUpperCase();
+  // Remove card prefix patterns
+  s = s.replace(/^(CARTE|CB)\s+\d{2}[\/\-\.]\d{2}([\/\-\.]\d{2,4})?\s*/i, '');
+  s = s.replace(/^VIR(EMENT)?\s+(SEPA\s+)?/i, '');
+  s = s.replace(/^PRLV\s+(SEPA\s+)?/i, '');
+  s = s.replace(/^CHEQUE\s+/i, '');
+  s = s.replace(/^RETRAIT\s+(DAB\s+)?/i, '');
+  s = s.replace(/^PAIEMENT\s+PAR\s+CARTE\s+/i, '');
+  s = s.replace(/^PAIEMENT\s+CARTE\s+\*?/i, '');
+  // Remove trailing refs/dates
+  s = s.replace(/\s+\d{6,}.*$/, '');
+  s = s.replace(/\d{2}[\/\-\.]\d{2}([\/\-\.]\d{2,4})?/g, '');
+  s = s.replace(/REF\s*:?\s*\w+/gi, '');
+  // Normalize
+  return s.trim().replace(/\s+/g,' ');
+}
+
+// Keywords that clearly signal real income (not inter-account transfers)
+const INCOME_SIGNALS  = ['SALAIRE','TENACY','RTE RESEAU','PAIE','CPAM','CAMIEG',
+  'PAJEMPLOI','ENERGIE MUTUELLE','CAF ','ALLOC','APL ','PRIME ','BONUS'];
+// Keywords that signal inter-account transfers (should stay Non classé until VI detection)
+const TRANSFER_SIGNALS = ['VIR ','VIREMENT','LOGITEL','SEPA '];
+
+function categorize(merchant, label, amount) {
+  if (amount > 0) {
+    const ul = (label || '').toUpperCase();
+    // Clear income signals → categorize immediately
+    if (INCOME_SIGNALS.some(k => (ul||'').includes(k))) {
+      if (ul.includes('CAF') || ul.includes('ALLOC') || ul.includes('APL')) return {cat:'CAF', macro:'Revenus'};
+      return {cat:'salaires', macro:'Revenus'};
+    }
+    // Looks like a bank transfer → leave as Non classé (VI detection will handle it)
+    if (TRANSFER_SIGNALS.some(k => (ul||'').includes(k))) return {cat:'', macro:'Non classé'};
+    // Explicit remboursement labels
+    if (ul.includes('REMBOURSEMENT') || ul.includes('REMBOURS')) return {cat:'remboursements', macro:'Revenus'};
+    // Unknown positive → Non classé (safer than wrongly calling it remboursements)
+    return {cat:'', macro:'Non classé'};
+  }
+
+  const key = merchant.toUpperCase();
+  const lbl = label.toUpperCase();
+
+  // Level 1: exact merchant rules
+  for (const [k,v] of Object.entries(MERCHANT_RULES)) {
+    if (key.includes(k.toUpperCase())) {
+      return {cat:v, macro: SUB2MACRO[v] || 'Non classé'};
+    }
+  }
+
+  // Level 2: keyword rules
+  for (const rule of KW_RULES) {
+    for (const kw of rule.kw) {
+      if (key.includes(kw) || lbl.includes(kw)) {
+        return {cat:rule.cat, macro: SUB2MACRO[rule.cat] || 'Non classé'};
+      }
+    }
+  }
+
+  return {cat:'', macro:'Non classé'};
+}
+
+// =====================================================================
+// PARSERS — multi-format (SG / Fortuneo / générique / CSV avec catégories)
+// =====================================================================
+function parseAmount(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\s/g,'').replace(',','.')) || 0;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const m = String(s).match(/(\d{2})[\/\-\.](\d{2})[\/\-\.](\d{4})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return String(s).slice(0,10);
+  return null;
+}
+
+function buildTxHash(date, label, amount) {
+  return `${date}|${label.slice(0,30)}|${amount}`;
+}
+
+// ── SG: extract clean merchant from "Détail de l'écriture" ──────────────────
+function extractSGMerchant(detail, shortLabel) {
+  const d = detail.trim();
+  // ECHEANCE PRET
+  if (/^ECHEANCE PRET/i.test(d)) return 'PRÊT IMMO';
+  // COMMISSION
+  if (/^COMMISSION /i.test(d)) {
+    const m = d.match(/^COMMISSION (.+?)(?:\s{2,}|$)/);
+    return m ? m[1].trim() : shortLabel;
+  }
+  // DE: MERCHANT ID: / DE: MERCHANT MOTIF: / DE: MERCHANT DATE:
+  let m = d.match(/\bDE:\s*(.+?)\s+(ID:|MOTIF:|DATE:|REF:)/i);
+  if (m) return m[1].trim();
+  // POUR CPTE DE: MERCHANT ID:
+  m = d.match(/POUR CPTE DE:\s*(.+?)\s+(ID:|MOTIF:)/i);
+  if (m) return m[1].trim();
+  // VIR ... POUR: PERSON DD MM BQ
+  m = d.match(/POUR:\s*(.+?)\s+\d{2}\s+\d{2}\s+BQ/i);
+  if (m) return m[1].trim();
+  // DE: MERCHANT (end of string)
+  m = d.match(/\bDE:\s*(.+)$/i);
+  if (m) return m[1].trim().split(/\s+/).slice(0,3).join(' ');
+  // Fallback: normalize short label
+  return normalizeMerchant(shortLabel);
+}
+
+// ── Detect CSV format from headers ──────────────────────────────────────────
+function detectFormat(headers) {
+  const all = headers.map(x=>(x||'').toLowerCase().replace(/[^a-zàâéèêîôùûç ]/g,'')).join('|');
+  // SG: has "montant de loperation" or "detail de lecriture"
+  if (all.includes('montant de l') || all.includes('dtail de l') || all.includes('detail de l')) return 'sg_new';
+  // SG old: has "date de comptabilisation"
+  if (all.includes('date de comptabilisation')) return 'sg_old';
+  // Fortuneo: has "débit euros" or "credit euros"
+  if (all.includes('bit euros') || all.includes('dit euros')) return 'fortuneo';
+  // Generic with debit/credit cols
+  if (all.includes('bit') || all.includes('dit')) return 'generic';
+  return 'unknown';
+}
+
+// ── Shared: apply category from optional CSV columns or auto-categorize ──────
+function applyCatFromRow(merchant, label, amount, row, idxCat, idxMacro, idxConf) {
+  const importedCat   = idxCat   >= 0 ? (row[idxCat]   || '').trim() : '';
+  const importedMacro = idxMacro >= 0 ? (row[idxMacro] || '').trim() : '';
+  if (importedCat && ALL_SUBS.includes(importedCat)) {
+    const cat   = importedCat;
+    const macro = importedMacro || SUB2MACRO[cat] || 'Non classé';
+    const confirmed = idxConf >= 0
+      ? ['true','1','oui','yes'].includes((row[idxConf]||'').toLowerCase())
+      : true;
+    if (merchant) MERCHANT_RULES[merchant] = cat;
+    return { cat, macro, confirmed };
+  }
+  if (importedCat) {
+    return { cat: importedCat, macro: importedMacro || 'Non classé', confirmed: false };
+  }
+  const { cat, macro } = categorize(merchant, label, amount);
+  return { cat, macro, confirmed: !!cat };
+}
+
+// ── SG NEW format: Date;Libellé;Détail;Montant;Devise ────────────────────────
+function parseSGNew(text, accountName) {
+  // Skip first line if it looks like account metadata (="xxxx";...)
+  const lines = text.split(/\r?\n/);
+  let startLine = 0;
+  if (lines[0].startsWith('=') || lines[0].startsWith('"=')) startLine = 1;
+  // Skip blank lines
+  while (startLine < lines.length && !lines[startLine].trim()) startLine++;
+  
+  const cleanText = lines.slice(startLine).join('\n');
+  const result = Papa.parse(cleanText, { delimiter:';', skipEmptyLines:true });
+  const rows = result.data;
+  if (rows.length < 2) return [];
+  
+  const headers = rows[0].map(x=>(x||'').trim());
+  const idxDate   = headers.findIndex(h => /date/i.test(h));
+  const idxLabel  = headers.findIndex(h => /libell/i.test(h));
+  const idxDetail = headers.findIndex(h => /d.tail|detail/i.test(h));
+  const idxAmount = headers.findIndex(h => /montant/i.test(h));
+  const idxCat    = headers.findIndex(h => /cat.gorie|categorie|sous.cat/i.test(h));
+  const idxMacro  = headers.findIndex(h => /^macro$/i.test(h));
+  const idxConf   = headers.findIndex(h => /confirm/i.test(h));
+  
+  if (idxDate < 0 || idxAmount < 0) return [];
+  
+  const txs = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 3) continue;
+    const dateStr = parseDate(row[idxDate]);
+    if (!dateStr) continue;
+    const shortLabel = (row[idxLabel] || '').trim();
+    const detail     = idxDetail >= 0 ? (row[idxDetail] || '').trim() : '';
+    const fullLabel  = detail || shortLabel;
+    const amount     = parseAmount(row[idxAmount]);
+    if (amount === 0 && !fullLabel) continue;
+    
+    // Use full detail for label, extract merchant from detail structure
+    const merchant = detail
+      ? extractSGMerchant(detail, shortLabel).toUpperCase().slice(0,60)
+      : normalizeMerchant(shortLabel);
+    
+    const { cat, macro, confirmed } = applyCatFromRow(merchant, fullLabel, amount, row, idxCat, idxMacro, idxConf);
+    
+    txs.push({
+      id: buildTxHash(dateStr, fullLabel, amount),
+      date: dateStr,
+      label: fullLabel,
+      merchant,
+      amount,
+      account: accountName,
+      macro, cat, confirmed,
+    });
+  }
+  return txs;
+}
+
+// ── SG OLD format: Date comptabilisation;Libellé;Débit;Crédit ───────────────
+function parseSGOld(text, accountName) {
+  const result = Papa.parse(text, { delimiter:';', skipEmptyLines:true });
+  const rows = result.data;
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(x=>(x||'').trim());
+  const idxDate   = headers.findIndex(h => /date/i.test(h));
+  const idxLabel  = headers.findIndex(h => /libell/i.test(h));
+  const idxDebit  = headers.findIndex(h => /d.bit/i.test(h));
+  const idxCredit = headers.findIndex(h => /cr.dit/i.test(h));
+  const idxCat    = headers.findIndex(h => /cat.gorie|categorie|sous.cat/i.test(h));
+  const idxMacro  = headers.findIndex(h => /^macro$/i.test(h));
+  const idxConf   = headers.findIndex(h => /confirm/i.test(h));
+  if (idxDate < 0 || idxLabel < 0) return parseFortuneoCSV(text, accountName);
+  const txs = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 2) continue;
+    const dateStr = parseDate(row[idxDate]);
+    if (!dateStr) continue;
+    const label  = (row[idxLabel] || '').trim();
+    const debit  = idxDebit  >= 0 ? parseAmount(row[idxDebit])  : 0;
+    const credit = idxCredit >= 0 ? parseAmount(row[idxCredit]) : 0;
+    const amount = credit - Math.abs(debit);
+    if (amount === 0 && !label) continue;
+    const merchant = normalizeMerchant(label);
+    const { cat, macro, confirmed } = applyCatFromRow(merchant, label, amount, row, idxCat, idxMacro, idxConf);
+    txs.push({ id:buildTxHash(dateStr,label,amount), date:dateStr, label, merchant, amount, account:accountName, macro, cat, confirmed });
+  }
+  return txs;
+}
+
+// ── Fortuneo / Générique: Date;Libellé;Débit euros;Crédit euros ──────────────
+function parseFortuneoCSV(text, accountName) {
+  const firstLine = text.split('\n')[0];
+  const sep = firstLine.includes(';') ? ';' : ',';
+  const result = Papa.parse(text, { delimiter:sep, skipEmptyLines:true });
+  const rows = result.data;
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(x=>(x||'').trim());
+  const idxDate   = headers.findIndex(h => /date/i.test(h));
+  const idxLabel  = headers.findIndex(h => /libell/i.test(h));
+  const idxDebit  = headers.findIndex(h => /d.bit/i.test(h));
+  const idxCredit = headers.findIndex(h => /cr.dit/i.test(h));
+  const idxCat    = headers.findIndex(h => /cat.gorie|categorie|sous.cat/i.test(h));
+  const idxMacro  = headers.findIndex(h => /^macro$/i.test(h));
+  const idxConf   = headers.findIndex(h => /confirm/i.test(h));
+  if (idxDate < 0 || idxLabel < 0) return [];
+  const txs = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length < 2) continue;
+    const dateStr = parseDate(row[idxDate]);
+    if (!dateStr) continue;
+    const label  = (row[idxLabel] || '').trim();
+    const debit  = idxDebit  >= 0 ? parseAmount(row[idxDebit])  : 0;
+    const credit = idxCredit >= 0 ? parseAmount(row[idxCredit]) : 0;
+    const amount = credit - Math.abs(debit);
+    if (amount === 0 && !label) continue;
+    const merchant = normalizeMerchant(label);
+    const { cat, macro, confirmed } = applyCatFromRow(merchant, label, amount, row, idxCat, idxMacro, idxConf);
+    txs.push({ id:buildTxHash(dateStr,label,amount), date:dateStr, label, merchant, amount, account:accountName, macro, cat, confirmed });
+  }
+  return txs;
+}
+
+function parseGenericCSV(text, accountName) {
+  return parseFortuneoCSV(text, accountName);
+}
+
+function importTransactions(newTxs) {
+  // Deduplicate by id
+  const existing = new Set(state.transactions.map(t=>t.id));
+  let added = 0;
+  for (const tx of newTxs) {
+    if (!existing.has(tx.id)) {
+      state.transactions.push(tx);
+      existing.add(tx.id);
+      added++;
+    }
+  }
+  // Sort by date desc
+  state.transactions.sort((a,b)=>b.date.localeCompare(a.date));
+  save();
+  buildReviewQueue();
+  applyFilters();
+  return added;
+}
+
+// =====================================================================
+// FILE HANDLING
+// =====================================================================
+function triggerFileInput() {
+  document.getElementById('file-input').click();
+}
+
+function handleFiles(files) {
+  for (const file of files) processFile(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-ov').classList.remove('on');
+  handleFiles(e.dataTransfer.files);
+}
+
+function processFile(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.csv')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      let text = e.target.result;
+      // Skip metadata line (SG: first line starts with =")
+      const lines = text.split(/\r?\n/);
+      let headerLine = lines.find(l => /date|libell/i.test(l) && l.includes(';'));
+      if (!headerLine) headerLine = lines[0] || '';
+      const sep = headerLine.includes(';') ? ';' : ',';
+      const headers = headerLine.split(sep).map(x => (x || '').trim());
+      const fileFormat = detectFormat(headers);   // renamed: no collision with fmt()
+
+      const fmtLabel = fileFormat === 'sg_new'  ? 'SG (nouveau format)'
+                     : fileFormat === 'sg_old'  ? 'SG (ancien format)'
+                     : fileFormat === 'fortuneo' ? 'Fortuneo'
+                     : 'Générique';
+
+      let account = guessAccountFromFilename(file.name);
+      if (account) {
+        const txs = parseByFormat(text, fileFormat, account);
+        const added = importTransactions(txs);
+        showToast(`✅ ${added} transactions importées [${fmtLabel}]`);
+        renderPrevision();
+        if (added > 0) suggestVIDetection();
+      } else {
+        pendingImport = { text, format: fileFormat, filename: file.name };
+        document.getElementById('import-format').textContent = fmtLabel;
+        openModal('import-modal');
+      }
+    };
+    // Read as latin-1 (works for SG + Fortuneo; UTF-8 ASCII subset is identical)
+    reader.readAsText(file, 'windows-1252');
+  } else if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const csv = XLSX.utils.sheet_to_csv(sheet, { FS: ';' });
+      pendingImport = { text: csv, format: 'generic', filename: file.name };
+      document.getElementById('import-format').textContent = 'Excel';
+      openModal('import-modal');
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    showToast('⚠️ Format non supporté : ' + file.name);
+  }
+}
+
+function guessAccountFromFilename(name) {
+  const n = name.toLowerCase();
+  if (n.includes('yann')) return 'CB Yann';
+  if (n.includes('chloe') || n.includes('chloé')) return 'CB Chloé';
+  if (n.includes('fortuneo') && n.includes('commun')) return 'Compte commun Fortuneo';
+  if (n.includes('sg') || n.includes('societe') || n.includes('soc.gen')) return 'Compte SG';
+  return null;
+}
+
+function parseByFormat(text, fmt, account) {
+  if (fmt === 'sg_new') return parseSGNew(text, account);
+  if (fmt === 'sg_old') return parseSGOld(text, account);
+  if (fmt === 'fortuneo') return parseFortuneoCSV(text, account);
+  return parseGenericCSV(text, account);
+}
+
+function confirmImport() {
+  if (!pendingImport) return;
+  const account    = document.getElementById('import-account').value;
+  const { text, format, filename } = pendingImport;
+  const txs  = parseByFormat(text, format, account);
+  const added = importTransactions(txs);
+  showToast(`✅ ${added} transactions importées depuis ${filename}`);
+  closeModal('import-modal');
+  pendingImport = null;
+  renderPrevision();
+  if (added > 0) suggestVIDetection();
+}
+
+// =====================================================================
+// REVIEW QUEUE
+// =====================================================================
+function buildReviewQueue() {
+  const unknown = state.transactions.filter(t => !t.cat);
+  const merchantMap = {};
+  for (const t of unknown) {
+    const m = t.merchant || t.label.slice(0,30);
+    if (!merchantMap[m]) merchantMap[m] = { count:0, examples:[] };
+    merchantMap[m].count++;
+    if (merchantMap[m].examples.length < 2) merchantMap[m].examples.push(t.label);
+  }
+  state.reviewQueue = Object.entries(merchantMap)
+    .sort((a,b)=>b[1].count - a[1].count)
+    .map(([merchant, { count, examples }]) => ({ merchant, count, examples }));
+  
+  const btn = document.getElementById('btn-review');
+  const countEl = document.getElementById('review-count');
+  if (state.reviewQueue.length > 0) {
+    btn.style.display = '';
+    countEl.textContent = state.reviewQueue.length;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function openReviewModal() {
+  const body = document.getElementById('review-body');
+  if (state.reviewQueue.length === 0) {
+    body.innerHTML = '<div class="alert alert-ok">✅ Tous les marchands sont classés !</div>';
+    openModal('review-modal');
+    return;
+  }
+  
+  const catOptions = ALL_SUBS.map(s=>`<option value="${s}">${s} (${SUB2MACRO[s]})</option>`).join('');
+  
+  body.innerHTML = `
+    <div class="alert alert-warn" style="margin-bottom:14px">
+      ${state.reviewQueue.length} marchand(s) inconnu(s) dans votre historique. Classez-les pour améliorer la catégorisation automatique.
+    </div>
+    ${state.reviewQueue.map((item,i) => `
+      <div class="rv-item">
+        <div style="flex:1">
+          <div class="rv-merchant">${item.merchant || '(vide)'}</div>
+          <div class="rv-examples">${item.examples.join(' / ')}</div>
+        </div>
+        <div class="rv-count">${item.count} transaction${item.count>1?'s':''}</div>
+        <select id="rv-sel-${i}" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;min-width:200px">
+          <option value="">-- Non classé --</option>
+          ${catOptions}
+        </select>
+      </div>
+    `).join('')}
+  `;
+  
+  // Pre-fill if already decided
+  state.reviewQueue.forEach((item, i) => {
+    const sel = document.getElementById(`rv-sel-${i}`);
+    if (state.reviewDecisions[item.merchant]) sel.value = state.reviewDecisions[item.merchant];
+  });
+  
+  openModal('review-modal');
+}
+
+function applyReviewAndClose() {
+  state.reviewQueue.forEach((item, i) => {
+    const sel = document.getElementById(`rv-sel-${i}`);
+    if (sel && sel.value) {
+      const cat = sel.value;
+      const macro = SUB2MACRO[cat] || 'Non classé';
+      // Save rule
+      MERCHANT_RULES[item.merchant] = cat;
+      state.reviewDecisions[item.merchant] = cat;
+      // Apply to all matching transactions
+      state.transactions.forEach(t => {
+        if (t.merchant === item.merchant && !t.confirmed) {
+          t.cat = cat;
+          t.macro = macro;
+          t.confirmed = true;
+        }
+      });
+    }
+  });
+  save();
+  buildReviewQueue();
+  applyFilters();
+  closeModal('review-modal');
+}
+
+// =====================================================================
+// FILTERS & SORT
+// =====================================================================
+function applyFilters() {
+  const f = state.filters;
+  f.start   = document.getElementById('f-start').value;
+  f.end     = document.getElementById('f-end').value;
+  f.account = document.getElementById('f-account').value;
+  f.macro   = document.getElementById('f-macro').value;
+  f.subcat  = document.getElementById('f-subcat').value;
+  f.search  = document.getElementById('f-search').value.toLowerCase();
+  
+  let txs = state.transactions;
+  if (f.start)            txs = txs.filter(t => t.date >= f.start);
+  if (f.end)              txs = txs.filter(t => t.date <= f.end);
+  if (f.account !== 'all') txs = txs.filter(t => t.account === f.account);
+  if (f.macro !== 'all')  txs = txs.filter(t => t.macro === f.macro);
+  if (f.subcat === '')    txs = txs.filter(t => !t.cat);          // "non classé"
+  else if (f.subcat !== 'all') txs = txs.filter(t => t.cat === f.subcat);
+  if (f.search) txs = txs.filter(t =>
+    (t.label||'').toLowerCase().includes(f.search) ||
+    (t.merchant||'').toLowerCase().includes(f.search) ||
+    (t.cat||'').toLowerCase().includes(f.search)
+  );
+  
+  // Sort
+  const { key, dir } = state.sort;
+  txs = [...txs].sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if (key === 'amount') { av=Math.abs(av); bv=Math.abs(bv); }
+    if (av < bv) return -dir;
+    if (av > bv) return dir;
+    return 0;
+  });
+  
+  state.filtered = txs;
+  state.page = 1;
+  renderStats();
+  renderCharts();
+  renderTable();
+  updateRecatBadge();
+}
+
+function onMacroChange() {
+  updateSubcatSelect();
+  applyFilters();
+}
+
+function updateSubcatSelect() {
+  const macro = document.getElementById('f-macro').value;
+  const sel   = document.getElementById('f-subcat');
+  const grp   = document.getElementById('f-subcat-grp');
+  const prev  = sel.value;  // keep current selection if still valid
+
+  // Build options
+  let opts = '<option value="all">Toutes</option>';
+
+  if (macro === 'all' || macro === 'Non classé') {
+    // Show all sub-categories grouped by macro
+    for (const [m, subs] of Object.entries(SUBS)) {
+      opts += `<optgroup label="${m}">`;
+      opts += subs.map(s => `<option value="${s}">${s}</option>`).join('');
+      opts += '</optgroup>';
+    }
+    opts += '<optgroup label="Non classé"><option value="">— vide —</option></optgroup>';
+  } else if (SUBS[macro]) {
+    // Show only subs for selected macro
+    opts += SUBS[macro].map(s => `<option value="${s}">${s}</option>`).join('');
+    opts += '<option value="">— non classé —</option>';
+  }
+
+  sel.innerHTML = opts;
+
+  // Restore previous value if still present
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  else sel.value = 'all';
+
+  // Show/hide the group (always visible, but collapse when empty macro)
+  grp.style.display = '';
+}
+
+function resetFilters() {
+  document.getElementById('f-start').value='';
+  document.getElementById('f-end').value='';
+  document.getElementById('f-account').value='all';
+  document.getElementById('f-macro').value='all';
+  document.getElementById('f-search').value='';
+  updateSubcatSelect();
+  document.getElementById('f-subcat').value='all';
+  state.chartFilter = null;
+  document.getElementById('chart-filter-label').textContent='';
+  applyFilters();
+}
+
+function sortBy(key) {
+  if (state.sort.key === key) state.sort.dir *= -1;
+  else { state.sort.key = key; state.sort.dir = -1; }
+  applyFilters();
+}
+
+// =====================================================================
+// STATS
+// =====================================================================
+function renderStats() {
+  const txs = state.filtered.filter(t => t.macro !== 'Virements internes');
+  const rev = txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const dep = txs.filter(t=>t.amount<0 && t.macro!=='Épargne').reduce((s,t)=>s+t.amount,0);
+  const sav = txs.filter(t=>t.macro==='Épargne').reduce((s,t)=>s+t.amount,0);
+  const bal = rev + dep + sav;
+  
+  document.getElementById('s-rev').textContent = fmt(rev);
+  document.getElementById('s-dep').textContent = fmt(dep);
+  document.getElementById('s-bal').textContent = fmt(bal);
+  document.getElementById('s-bal').className = 'stat-val ' + (bal>=0?'pos':'neg');
+  document.getElementById('s-sav').textContent = fmt(-sav);
+  document.getElementById('s-count').textContent = txs.length;
+}
+
+// =====================================================================
+// CHARTS
+// =====================================================================
+function getMonthlyData(txs) {
+  const months = {};
+  for (const t of txs) {
+    if (t.macro === 'Virements internes') continue; // exclude from charts
+    const mo = t.date.slice(0,7);
+    if (!months[mo]) months[mo] = { Besoins:0, Envies:0, 'Épargne':0, Revenus:0 };
+    if (t.macro in months[mo]) months[mo][t.macro] += Math.abs(t.amount);
+  }
+  const labels = Object.keys(months).sort();
+  return { labels, months };
+}
+
+function renderCharts() {
+  const txs = state.filtered;
+  if (!txs.length) {
+    // Destroy all charts and show empty
+    Object.values(state.charts).forEach(c=>c&&c.destroy());
+    state.charts = {};
+    return;
+  }
+  
+  const expenses = txs.filter(t=>t.amount<0);
+  const { labels, months } = getMonthlyData(txs);
+  
+  const shortLabels = labels.map(l=>{
+    const [y,m] = l.split('-');
+    const mName = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'][+m-1];
+    return `${mName} ${y.slice(2)}`;
+  });
+  
+  // ---- Chart 1: Monthly expenses stacked bar ----
+  const macros = ['Besoins','Envies','Épargne'];
+  const c1data = {
+    labels: shortLabels,
+    datasets: macros.map(m=>({
+      label: m,
+      data: labels.map(l=>+(months[l]?.[m]||0).toFixed(2)),
+      backgroundColor: MACROS[m].color + 'CC',
+      borderColor: MACROS[m].color,
+      borderWidth: 1,
+      stack:'stack'
+    }))
+  };
+  updateChart('c-monthly','bar', c1data, {
+    plugins:{ legend:{ position:'bottom', labels:{color:'#94A3B8',font:{size:11},boxWidth:12,padding:12} }, tooltip:{ callbacks:{ label:ctx=>`${ctx.dataset.label}: ${fmtAbs(ctx.raw)}` } } },
+    scales:{ x:{stacked:true,grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',maxRotation:45}}, y:{stacked:true,grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)}} },
+    onClick:(e,els,ch)=>{ if(els.length){ const lbl=labels[els[0].index]; filterByMonth(lbl,ch); } }
+  });
+  
+  // ---- Chart 2: Revenue + balance ----
+  const revByMonth = labels.map(l=>+(months[l]?.Revenus||0).toFixed(2));
+  const depByMonth = labels.map(l=>{
+    const m=months[l];if(!m)return 0;
+    return +((m.Besoins||0)+(m.Envies||0)).toFixed(2);
+  });
+  const balByMonth = labels.map((l,i)=>+(revByMonth[i]-depByMonth[i]).toFixed(2));
+  
+  updateChart('c-revenue','bar', {
+    labels: shortLabels,
+    datasets: [
+      { type:'bar', label:'Revenus', data:revByMonth, backgroundColor:'#8B5CF6AA', borderColor:'#8B5CF6', borderWidth:1, yAxisID:'y' },
+      { type:'bar', label:'Dépenses', data:depByMonth, backgroundColor:'#EF4444AA', borderColor:'#EF4444', borderWidth:1, yAxisID:'y' },
+      { type:'line', label:'Balance', data:balByMonth, borderColor:'#10B981', backgroundColor:'transparent', borderWidth:2, pointRadius:3, tension:.4, yAxisID:'y' }
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{color:'#94A3B8',font:{size:11},boxWidth:12,padding:12}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',maxRotation:45}},y:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)}}}
+  });
+  
+  // ---- Chart 3: Donut macro ----
+  const macroTotals = {};
+  for (const t of expenses) {
+    const m = t.macro || 'Non classé';
+    macroTotals[m] = (macroTotals[m]||0) + Math.abs(t.amount);
+  }
+  const donutKeys = Object.keys(macroTotals).filter(k=>macroTotals[k]>0);
+  updateChart('c-donut','doughnut',{
+    labels: donutKeys,
+    datasets:[{ data:donutKeys.map(k=>+macroTotals[k].toFixed(2)), backgroundColor:donutKeys.map(k=>(MACROS[k]?.color||'#6B7280')+'CC'), borderColor:donutKeys.map(k=>MACROS[k]?.color||'#6B7280'), borderWidth:2 }]
+  },{
+    cutout:'65%',
+    plugins:{legend:{position:'bottom',labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtAbs(ctx.raw)}`}}}
+  });
+  
+  // ---- Chart 4: Besoins detail ----
+  const besoinsTotals = {};
+  for (const t of expenses.filter(t=>t.macro==='Besoins')) {
+    const c = t.cat || 'autre';
+    besoinsTotals[c] = (besoinsTotals[c]||0) + Math.abs(t.amount);
+  }
+  const bKeys = Object.keys(besoinsTotals).sort((a,b)=>besoinsTotals[b]-besoinsTotals[a]);
+  updateChart('c-besoins','bar',{
+    labels:bKeys,
+    datasets:[{data:bKeys.map(k=>+besoinsTotals[k].toFixed(2)),backgroundColor:'#3B82F6AA',borderColor:'#3B82F6',borderWidth:1}]
+  },{
+    indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtAbs(ctx.raw)}}},
+    scales:{x:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)}},y:{grid:{display:false},ticks:{color:'#94A3B8',font:{size:10}}}}
+  });
+  
+  // ---- Chart 5: Envies detail ----
+  const enviesTotals = {};
+  for (const t of expenses.filter(t=>t.macro==='Envies')) {
+    const c = t.cat || 'autre';
+    enviesTotals[c] = (enviesTotals[c]||0) + Math.abs(t.amount);
+  }
+  const eKeys = Object.keys(enviesTotals).sort((a,b)=>enviesTotals[b]-enviesTotals[a]);
+  updateChart('c-envies','bar',{
+    labels:eKeys,
+    datasets:[{data:eKeys.map(k=>+enviesTotals[k].toFixed(2)),backgroundColor:'#F59E0BAA',borderColor:'#F59E0B',borderWidth:1}]
+  },{
+    indexAxis:'y',
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtAbs(ctx.raw)}}},
+    scales:{x:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)}},y:{grid:{display:false},ticks:{color:'#94A3B8',font:{size:10}}}}
+  });
+  
+  // ---- Chart 6: Savings ----
+  const savByMonth = labels.map(l=>+(months[l]?.['Épargne']||0).toFixed(2));
+  let cumSav = 0;
+  const cumSavByMonth = savByMonth.map(v=>+(cumSav+=v).toFixed(2));
+  updateChart('c-savings','bar',{
+    labels:shortLabels,
+    datasets:[
+      {type:'bar',label:'Épargne mensuelle',data:savByMonth,backgroundColor:'#10B981AA',borderColor:'#10B981',borderWidth:1,yAxisID:'y'},
+      {type:'line',label:'Cumul',data:cumSavByMonth,borderColor:'#34D399',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.4,yAxisID:'y2'}
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmtAbs(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',maxRotation:45}},y:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)},position:'left'},y2:{position:'right',grid:{display:false},ticks:{color:'#34D399',callback:v=>fmtAbs(v)}}}
+  });
+  
+  // ---- Chart 7: Evolution besoins/envies ----
+  updateChart('c-evolution','line',{
+    labels:shortLabels,
+    datasets:[
+      {label:'Besoins',data:labels.map(l=>+(months[l]?.Besoins||0).toFixed(2)),borderColor:'#3B82F6',backgroundColor:'#3B82F622',fill:true,tension:.4,borderWidth:2,pointRadius:2},
+      {label:'Envies',data:labels.map(l=>+(months[l]?.Envies||0).toFixed(2)),borderColor:'#F59E0B',backgroundColor:'#F59E0B22',fill:true,tension:.4,borderWidth:2,pointRadius:2}
+    ]
+  },{
+    plugins:{legend:{position:'bottom',labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmtAbs(ctx.raw)}`}}},
+    scales:{x:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',maxRotation:45}},y:{grid:{color:'#2D3F5555'},ticks:{color:'#94A3B8',callback:v=>fmtAbs(v)}}}
+  });
+  
+  // ---- Chart 8: By account ----
+  const accTotals = {};
+  for (const t of expenses) {
+    accTotals[t.account] = (accTotals[t.account]||0) + Math.abs(t.amount);
+  }
+  const aKeys = Object.keys(accTotals).filter(k=>accTotals[k]>0);
+  updateChart('c-account','doughnut',{
+    labels:aKeys,
+    datasets:[{data:aKeys.map(k=>+accTotals[k].toFixed(2)),backgroundColor:aKeys.map(k=>(ACCOUNT_COLORS[k]||'#6B7280')+'CC'),borderColor:aKeys.map(k=>ACCOUNT_COLORS[k]||'#6B7280'),borderWidth:2}]
+  },{
+    cutout:'60%',
+    plugins:{legend:{position:'bottom',labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmtAbs(ctx.raw)}`}}}
+  });
+}
+
+function updateChart(id, type, data, options) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (state.charts[id]) {
+    state.charts[id].destroy();
+  }
+  state.charts[id] = new Chart(canvas, {
+    type,
+    data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      ...options
+    }
+  });
+}
+
+function filterByMonth(monthStr, chart) {
+  const [y,m] = monthStr.split('-');
+  const mName = ['jan','fév','mar','avr','mai','jun','jul','aoû','sep','oct','nov','déc'][+m-1];
+  const start = monthStr + '-01';
+  const lastDay = new Date(+y, +m, 0).getDate();
+  const end = `${monthStr}-${String(lastDay).padStart(2,'0')}`;
+  document.getElementById('f-start').value = start;
+  document.getElementById('f-end').value = end;
+  document.getElementById('chart-filter-label').textContent = `📅 Filtré: ${mName} ${y} — cliquez Réinitialiser pour tout afficher`;
+  applyFilters();
+}
+
+// =====================================================================
+// TABLE
+// =====================================================================
+const catOptions = (() => {
+  let opts = '<option value="">— Non classé —</option>';
+  for (const [macro, subs] of Object.entries(SUBS)) {
+    opts += `<optgroup label="${macro}">`;
+    opts += subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+    opts += '</optgroup>';
+  }
+  return opts;
+})();
+
+function renderTable() {
+  const txs = state.filtered;
+  const total = txs.length;
+  const pages = Math.max(1, Math.ceil(total / state.pageSize));
+  if (state.page > pages) state.page = pages;
+  
+  const start = (state.page-1) * state.pageSize;
+  const slice = txs.slice(start, start+state.pageSize);
+  
+  document.getElementById('tbl-info').textContent = `${total.toLocaleString()} transaction${total!==1?'s':''} · ${txs.filter(t=>!t.confirmed).length} non confirmée${txs.filter(t=>!t.confirmed).length!==1?'s':''}`;
+  
+  const tbody = document.getElementById('tbl-body');
+  if (total === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty">
+      <div class="empty-icon">📂</div>
+      <div class="empty-ttl">${state.transactions.length === 0 ? 'Aucune donnée importée' : 'Aucune transaction correspondante'}</div>
+      <div class="empty-desc">${state.transactions.length === 0 ? 'Glissez-déposez vos exports CSV/Excel Fortuneo ou SG, ou cliquez sur "↑ Importer".' : 'Modifiez vos filtres.'}</div>
+      ${state.transactions.length === 0 ? '<button class="btn btn-p" onclick="triggerFileInput()">↑ Importer un fichier</button>' : ''}
+    </div></td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map(t => {
+      const macroCls = {Besoins:'b-B',Envies:'b-E','Épargne':'b-Ep',Revenus:'b-R'}[t.macro]||'b-N';
+      const dotColor = ACCOUNT_COLORS[t.account] || '#6B7280';
+      const amtClass = t.amount >= 0 ? 'amt-c' : 'amt-d';
+      const dateDisp = t.date.split('-').reverse().join('/');
+      const label = t.label.length > 40 ? t.label.slice(0,40)+'…' : t.label;
+      const merchant = t.merchant.length > 25 ? t.merchant.slice(0,25)+'…' : t.merchant;
+      
+      return `<tr>
+        <td style="white-space:nowrap">${dateDisp}</td>
+        <td style="white-space:nowrap"><span class="adot" style="background:${dotColor}"></span>${t.account}</td>
+        <td title="${t.label}">${label}</td>
+        <td title="${t.merchant}" style="color:var(--text2)">${merchant}</td>
+        <td class="${amtClass}" style="text-align:right;white-space:nowrap">${fmt(t.amount)}</td>
+        <td><span class="badge ${macroCls}">${t.macro}</span></td>
+        <td>
+          <select class="cat-sel" data-id="${t.id}" onchange="editCat(this)">
+            ${catOptions.replace(`value="${t.cat}"`, `value="${t.cat}" selected`)}
+          </select>
+        </td>
+        <td style="text-align:center">
+          ${t.confirmed 
+            ? '<span class="check" title="Confirmé">✓</span>' 
+            : `<span class="uncheck" title="Confirmer" onclick="confirmOne('${t.id}')">○</span>`}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+  
+  renderPagination(pages);
+}
+
+function renderPagination(pages) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML=''; return; }
+  
+  let html = '';
+  html += `<button class="pg-btn" onclick="goPage(${state.page-1})" ${state.page<=1?'disabled':''}>‹</button>`;
+  
+  const range = [];
+  for (let i=1;i<=pages;i++) {
+    if (i===1||i===pages||Math.abs(i-state.page)<=2) range.push(i);
+    else if (range[range.length-1]!=='…') range.push('…');
+  }
+  
+  range.forEach(p => {
+    if (p==='…') html += `<span style="color:var(--text3);padding:0 4px">…</span>`;
+    else html += `<button class="pg-btn ${p===state.page?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  });
+  
+  html += `<button class="pg-btn" onclick="goPage(${state.page+1})" ${state.page>=pages?'disabled':''}>›</button>`;
+  html += `<span class="pg-info">Page ${state.page}/${pages}</span>`;
+  
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(state.filtered.length / state.pageSize);
+  state.page = Math.max(1, Math.min(pages, p));
+  renderTable();
+}
+
+// =====================================================================
+// EDIT CATEGORY
+// =====================================================================
+function editCat(sel) {
+  const id = sel.dataset.id;
+  const cat = sel.value;
+  const macro = SUB2MACRO[cat] || 'Non classé';
+  const tx = state.transactions.find(t=>t.id===id);
+  if (tx) {
+    tx.cat = cat;
+    tx.macro = macro;
+    tx.confirmed = !!cat;
+    // Learn this merchant
+    if (cat && tx.merchant) {
+      MERCHANT_RULES[tx.merchant] = cat;
+    }
+    save();
+    applyFilters();
+  }
+}
+
+function confirmOne(id) {
+  const tx = state.transactions.find(t=>t.id===id);
+  if (tx && tx.cat) { tx.confirmed = true; save(); applyFilters(); }
+  else showToast('⚠️ Assignez d\'abord une catégorie');
+}
+
+function confirmAll() {
+  let count = 0;
+  state.filtered.forEach(t=>{
+    const tx = state.transactions.find(x=>x.id===t.id);
+    if (tx && tx.cat && !tx.confirmed) { tx.confirmed=true; count++; }
+  });
+  save();
+  applyFilters();
+  if (count) showToast(`✅ ${count} transaction${count>1?'s':''} confirmée${count>1?'s':''}`);
+}
+
+// =====================================================================
+// EXPORT
+// =====================================================================
+// =====================================================================
+// IMPORT JSON
+// =====================================================================
+function triggerJSONInput() {
+  document.getElementById('json-input').click();
+}
+
+function handleJSONImport(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let txs = [];
+      // Support two formats:
+      // 1. Array of transactions (direct export)
+      // 2. Object with a "transactions" key
+      if (Array.isArray(data)) txs = data;
+      else if (data.transactions) txs = data.transactions;
+      else { showToast('⚠️ Format JSON non reconnu'); return; }
+      
+      // Validate minimal structure
+      if (!txs.length) { showToast('⚠️ Aucune transaction dans ce fichier'); return; }
+      if (!txs[0].date || txs[0].amount === undefined) {
+        showToast('⚠️ Structure JSON invalide (champs date/amount manquants)');
+        return;
+      }
+      
+      // Learn merchant rules from imported confirmed transactions
+      txs.forEach(t => {
+        if (t.confirmed && t.cat && t.merchant) {
+          MERCHANT_RULES[t.merchant] = t.cat;
+        }
+      });
+      
+      const added = importTransactions(txs);
+      showToast(`✅ JSON importé : ${added} nouvelles transactions (${txs.length - added} doublons ignorés)`);
+      renderPrevision();
+      if (added > 0) suggestVIDetection();
+    } catch(err) {
+      showToast('⚠️ Erreur lecture JSON : ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  // Reset input so same file can be re-selected
+  document.getElementById('json-input').value = '';
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state.transactions, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `budget-famille-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function clearAll() {
+  if (!confirm('⚠️ Effacer TOUTES les transactions ? Cette action est irréversible.')) return;
+  state.transactions = [];
+  state.filtered = [];
+  state.reviewQueue = [];
+  localStorage.removeItem('bf_tx');
+  applyFilters();
+  showToast('🗑 Données effacées');
+}
+
+// =====================================================================
+// MODAL
+// =====================================================================
+function openModal(id) { document.getElementById(id).classList.add('on'); }
+function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+
+// Click outside modal to close
+document.querySelectorAll('.modal-ov').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('on'); });
+});
+
+// =====================================================================
+// DRAG & DROP
+// =====================================================================
+document.addEventListener('dragenter', e=>{
+  if (e.dataTransfer.types.includes('Files')) {
+    e.preventDefault();
+    document.getElementById('drop-ov').classList.add('on');
+  }
+});
+document.getElementById('drop-ov').addEventListener('dragleave', e=>{
+  if (!e.relatedTarget || !document.getElementById('drop-ov').contains(e.relatedTarget)) {
+    document.getElementById('drop-ov').classList.remove('on');
+  }
+});
+document.getElementById('drop-ov').addEventListener('dragover', e=>e.preventDefault());
+document.getElementById('drop-ov').addEventListener('drop', e=>{
+  e.preventDefault();
+  document.getElementById('drop-ov').classList.remove('on');
+  handleFiles(e.dataTransfer.files);
+});
+
+// =====================================================================
+// UTILITIES
+// =====================================================================
+function fmt(n) {
+  if (n===undefined||n===null) return '—';
+  return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+}
+function fmtAbs(n) {
+  return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Math.abs(n));
+}
+
+let toastTimer;
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText='position:fixed;bottom:24px;right:24px;background:#1E293B;border:1px solid #334155;color:#F1F5F9;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.4);transition:opacity .3s';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{toast.style.opacity='0';}, 3500);
+}
+
+// =====================================================================
+// PRÉVISION DU MOIS — RÉCURRENCES
+// =====================================================================
+
+let prevTab = 'besoin';
+const ACCOUNT_COLORS_MAP = {
+  'CB Yann': '#3B82F6', 'CB Chloé': '#EC4899',
+  'Compte commun Fortuneo': '#10B981', 'Compte SG': '#F59E0B',
+};
+
+function switchPrevTab(tab) {
+  prevTab = tab;
+  ['besoin','recurrences','alertes','categories'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t === tab);
+  });
+  renderPrevision();
+}
+
+// ── Detect recurring transactions ──────────────────────────────────────────
+function detectRecurrences() {
+  // Exclude virements internes (neutre au niveau famille) et revenus
+  const txs = state.transactions.filter(t =>
+    t.amount < 0 &&
+    t.macro !== 'Virements internes' &&
+    t.cat   !== 'virement interne'
+  );
+  if (!txs.length) return [];
+
+  // Group: merchant × account × rounded amount (±15%)
+  const groups = {};
+  for (const t of txs) {
+    const roundedAmt = Math.round(Math.abs(t.amount) / 5) * 5; // round to nearest 5€
+    const key = `${(t.merchant||'').slice(0,25)}|${t.account||''}|${roundedAmt}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  }
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0,7);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+                        .toISOString().slice(0,7);
+
+  const recurrences = [];
+
+  for (const [key, group] of Object.entries(groups)) {
+    const recentTxs = group.filter(t => t.date.slice(0,7) >= sixMonthsAgo);
+    const recentMonths = [...new Set(recentTxs.map(t => t.date.slice(0,7)))].sort();
+    if (recentMonths.length < 2) continue; // needs ≥2 months recent
+
+    const amounts = recentTxs.map(t => Math.abs(t.amount||0));
+    const days    = recentTxs.map(t => parseInt((t.date||'2000-01-01').slice(8,10)));
+    const avgAmt  = amounts.reduce((s,a) => s+a, 0) / amounts.length;
+    const avgDay  = Math.round(days.reduce((s,d) => s+d, 0) / days.length);
+    const [merchant, account] = key.split('|');
+
+    const paidThisMonth = recentTxs.filter(t => t.date.slice(0,7) === currentMonth);
+    const isPaid = paidThisMonth.length > 0;
+    const paidAmt = paidThisMonth.reduce((s,t) => s + Math.abs(t.amount), 0);
+
+    // Detect if overdue: expected day has passed and not paid
+    const today = now.getDate();
+    const isOverdue = !isPaid && avgDay < today - 2; // 2-day grace
+    const isUpcoming = !isPaid && !isOverdue;
+
+    recurrences.push({
+      merchant: merchant.trim(),
+      account,
+      cat: recentTxs[0]?.cat || '',
+      macro: recentTxs[0]?.macro || '',
+      avgAmt: Math.round(avgAmt * 100) / 100,
+      avgDay,
+      monthsActive: recentMonths.length,
+      isPaid,
+      isOverdue,
+      isUpcoming,
+      paidAmt: Math.round(paidAmt * 100) / 100,
+      label: recentTxs[0]?.label?.slice(0,50) || merchant,
+    });
+  }
+
+  return recurrences.sort((a,b) => a.avgDay - b.avgDay);
+}
+
+// ── Render prevision panel ─────────────────────────────────────────────────
+function renderPrevision() {
+  try {
+    const now   = new Date();
+    const month = now.toLocaleString('fr-FR', {month:'long', year:'numeric'});
+    document.getElementById('prev-title').textContent = '📅 Prévision — ' + month.charAt(0).toUpperCase()+month.slice(1);
+
+    if (!state.transactions.length) {
+      document.getElementById('prev-content').innerHTML =
+        '<div style="color:var(--text3);font-size:13px;padding:10px">Importez des données pour voir la prévision.</div>';
+      return;
+    }
+
+    const recs = detectRecurrences();
+    if (prevTab === 'besoin')            renderBesoin(recs);
+    else if (prevTab === 'recurrences')  renderRecurrencesList(recs);
+    else if (prevTab === 'alertes')      renderAlertes(recs);
+    else                                 renderCategories();
+  } catch(e) {
+    console.error('renderPrevision error:', e);
+    document.getElementById('prev-content').innerHTML =
+      '<div style="color:var(--danger);font-size:12px;padding:10px">⚠ Erreur prévision : ' + e.message + '</div>';
+  }
+}
+
+// ── Tab 1: Besoin en cash par compte ──────────────────────────────────────
+function renderBesoin(recs) {
+  const ACCOUNTS = ['Compte SG','Compte commun Fortuneo','CB Yann','CB Chloé'];
+  const now   = new Date();
+  const today = now.getDate();
+
+  // Pre-compute avg monthly internal transfers per account (info only, not in need calc)
+  function avgMonthlyVI(acc) {
+    const viTxs = state.transactions.filter(t =>
+      t.account === acc && t.macro === 'Virements internes' && t.amount < 0);
+    if (!viTxs.length) return 0;
+    const months = new Set(viTxs.map(t => t.date.slice(0,7))).size || 1;
+    return viTxs.reduce((s,t) => s + Math.abs(t.amount), 0) / months;
+  }
+
+  // Global VI avg for summary card
+  const viTxsAll  = state.transactions.filter(t => t.macro === 'Virements internes' && t.amount < 0);
+  const viMonths  = new Set(viTxsAll.map(t => t.date.slice(0,7))).size || 1;
+  const avgVIAll  = viTxsAll.reduce((s,t) => s + Math.abs(t.amount), 0) / viMonths;
+  const avgVIStr  = avgVIAll > 0
+    ? '<div style="font-size:11px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-style:italic">⇄ Virements internes : ~' + fmtAbs(avgVIAll) + '/mois (neutralisés, non comptés)</div>'
+    : '';
+
+  let out = '<div class="prev-cards">';
+
+  for (const acc of ACCOUNTS) {
+    const accRecs = recs.filter(r => r.account === acc);
+    if (!accRecs.length) continue;
+
+    const totalMonthly = accRecs.reduce((s,r) => s + r.avgAmt, 0);
+    const paidAmt      = accRecs.filter(r => r.isPaid).reduce((s,r) => s + r.paidAmt, 0);
+    const overdueAmt   = accRecs.filter(r => r.isOverdue).reduce((s,r) => s + r.avgAmt, 0);
+    const pendingAmt   = accRecs.filter(r => r.isUpcoming).reduce((s,r) => s + r.avgAmt, 0);
+    const remaining    = overdueAmt + pendingAmt;
+
+    const paidPct  = totalMonthly > 0 ? Math.round(paidAmt    / totalMonthly * 100) : 0;
+    const latePct  = totalMonthly > 0 ? Math.round(overdueAmt / totalMonthly * 100) : 0;
+    const pendPct  = totalMonthly > 0 ? Math.round(pendingAmt / totalMonthly * 100) : 0;
+    const dotColor = ACCOUNT_COLORS_MAP[acc] || '#6B7280';
+    const avgVI    = avgMonthlyVI(acc);
+
+    const pendingRows = accRecs
+      .filter(r => !r.isPaid)
+      .sort((a,b) => a.avgDay - b.avgDay)
+      .map(r => {
+        const cls  = r.isOverdue ? 's-late' : 's-pend';
+        const icon = r.isOverdue ? '⚠' : '○';
+        const nameHtml = r.isOverdue
+          ? '<span style="color:var(--danger)">' + r.merchant + '</span>'
+          : r.merchant;
+        const color = r.isOverdue ? 'var(--danger)' : 'var(--warning)';
+        return '<div class="rec-row">'
+          + '<span class="rec-day">~' + r.avgDay + '</span>'
+          + '<span class="rec-status ' + cls + '">' + icon + '</span>'
+          + '<span class="rec-merchant">' + nameHtml + '</span>'
+          + '<span class="rec-cat">' + (r.cat||'') + '</span>'
+          + '<span class="rec-amt" style="color:' + color + '">-' + fmtAbs(r.avgAmt) + '</span>'
+          + '</div>';
+      }).join('');
+
+    const paidRows = accRecs
+      .filter(r => r.isPaid)
+      .sort((a,b) => a.avgDay - b.avgDay)
+      .slice(0,4)
+      .map(r =>
+        '<div class="rec-row">'
+        + '<span class="rec-day">~' + r.avgDay + '</span>'
+        + '<span class="rec-status s-paid">✓</span>'
+        + '<span class="rec-merchant" style="color:var(--text3)">' + r.merchant + '</span>'
+        + '<span class="rec-amt" style="color:var(--success)">-' + fmtAbs(r.paidAmt) + '</span>'
+        + '</div>'
+      ).join('');
+
+    const needColor  = remaining > 0 ? (overdueAmt > 0 ? 'var(--danger)' : 'var(--warning)') : 'var(--success)';
+    const needLabel  = remaining > 0 ? 'Besoin cash : ' + fmtAbs(remaining) : '✓ Récurrences couvertes';
+    const viNote     = avgVI > 0
+      ? '<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">+ ~' + fmtAbs(avgVI) + '/mois virements sortants (non comptés)</div>'
+      : '';
+    const overdueBadge = overdueAmt > 0
+      ? '<span class="pn-late">⚠ En retard : ' + fmtAbs(overdueAmt) + '</span>' : '';
+    const pendBadge  = pendingAmt > 0
+      ? '<span class="pn-pend">○ À venir : ' + fmtAbs(pendingAmt) + '</span>' : '';
+    const paidSep    = paidRows
+      ? '<div style="font-size:10px;color:var(--text3);margin-top:6px;padding-top:4px;border-top:1px solid var(--border)22">Déjà payé ce mois :</div>' + paidRows
+      : '';
+
+    out +=
+      '<div class="prev-card">'
+      + '<div class="prev-card-top">'
+      +   '<div class="prev-acc-dot" style="background:' + dotColor + '"></div>'
+      +   '<span class="prev-acc-name">' + acc + '</span>'
+      +   '<span class="prev-total">' + fmt(-totalMonthly) + '/mois</span>'
+      + '</div>'
+      + '<div class="prev-bar-wrap">'
+      +   '<div class="prev-bar-paid" style="width:' + paidPct + '%"></div>'
+      +   '<div class="prev-bar-late" style="width:' + latePct + '%"></div>'
+      +   '<div class="prev-bar-pend" style="width:' + pendPct + '%"></div>'
+      + '</div>'
+      + '<div class="prev-nums">'
+      +   '<span class="pn-paid">✓ Payé : ' + fmtAbs(paidAmt) + '</span>'
+      +   overdueBadge + pendBadge
+      + '</div>'
+      + '<div class="need-badge" style="color:' + needColor + '">' + needLabel + '</div>'
+      + viNote
+      + '<div class="prev-list" style="margin-top:8px">'
+      +   pendingRows + paidSep
+      + '</div>'
+      + '</div>';
+  }
+
+  // Global summary card
+  const totalAll = recs.reduce((s,r) => s + r.avgAmt, 0);
+  const paidAll  = recs.filter(r => r.isPaid).reduce((s,r) => s + r.paidAmt, 0);
+  const needAll  = recs.filter(r => !r.isPaid).reduce((s,r) => s + r.avgAmt, 0);
+  const needColor2 = needAll > 0 ? 'var(--warning)' : 'var(--success)';
+
+  out +=
+    '<div class="prev-card" style="border-color:var(--primary)44;background:linear-gradient(135deg,var(--surface),var(--surface2))">'
+    + '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">📊 Synthèse tous comptes</div>'
+    + '<div style="font-size:22px;font-weight:800;color:' + needColor2 + ';margin-bottom:4px">' + fmtAbs(needAll) + '</div>'
+    + '<div style="font-size:12px;color:var(--text2)">besoin en cash restant ce mois <span style="color:var(--text3)">(hors virements internes)</span></div>'
+    + '<div style="margin-top:10px;font-size:12px;display:flex;flex-direction:column;gap:4px">'
+    +   '<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Dépenses récurrentes</span><span>' + fmtAbs(totalAll) + '</span></div>'
+    +   '<div style="display:flex;justify-content:space-between"><span style="color:var(--success)">Déjà débité ce mois</span><span style="color:var(--success)">' + fmtAbs(paidAll) + '</span></div>'
+    +   '<div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid var(--border);padding-top:4px;margin-top:2px">'
+    +     '<span style="color:' + needColor2 + '">Reste à couvrir</span>'
+    +     '<span style="color:' + needColor2 + '">' + fmtAbs(needAll) + '</span>'
+    +   '</div>'
+    +   avgVIStr
+    + '</div>'
+    + '</div>';
+
+  out += '</div>';
+  document.getElementById('prev-content').innerHTML = out;
+}
+
+
+// ── Tab 4: Par compte → catégories ───────────────────────────────────────
+function analyzeByCategory() {
+  const now          = new Date();
+  const currentMonth = now.toISOString().slice(0,7);
+  const cutoff       = new Date(now.getFullYear(), now.getMonth()-6, 1).toISOString().slice(0,7);
+
+  const txs = state.transactions.filter(t =>
+    t.amount < 0 &&
+    t.macro !== 'Virements internes' &&
+    t.cat
+  );
+
+  // Build tree: account → cat → { macro, months{} }
+  const tree = {};
+  for (const t of txs) {
+    const mo  = t.date.slice(0,7);
+    if (mo < cutoff) continue;
+    const acc = t.account || 'Inconnu';
+    const cat = t.cat;
+    if (!tree[acc]) tree[acc] = {};
+    if (!tree[acc][cat]) tree[acc][cat] = { macro: t.macro, months: {} };
+    tree[acc][cat].months[mo] = (tree[acc][cat].months[mo] || 0) + Math.abs(t.amount);
+  }
+
+  // Compute stats per account → cat
+  const result = {};
+  for (const [acc, cats] of Object.entries(tree)) {
+    result[acc] = [];
+    for (const [cat, data] of Object.entries(cats)) {
+      const past = Object.keys(data.months).filter(m => m < currentMonth).sort();
+      if (!past.length) continue;
+      const vals = past.map(m => data.months[m]);
+      const avg  = vals.reduce((s,v) => s+v, 0) / vals.length;
+      if (avg < 5) continue;
+      const variance = vals.reduce((s,v) => s+(v-avg)**2, 0) / vals.length;
+      const cv = avg > 0 ? Math.sqrt(variance) / avg : 1;
+      const thisMonth = data.months[currentMonth] || 0;
+      result[acc].push({
+        cat,
+        macro: data.macro,
+        avg,
+        cv,
+        stability: cv < 0.2 ? 'stable' : cv < 0.45 ? 'moderate' : 'variable',
+        thisMonth,
+        remaining: Math.max(0, avg - thisMonth),
+        pct: avg > 0 ? Math.min(1, thisMonth / avg) : 0,
+        months: past.length,
+      });
+    }
+    result[acc].sort((a,b) => {
+      // Sort: Besoins first, then Envies, then Épargne; within each by avg desc
+      const macroOrder = { Besoins:0, Envies:1, 'Épargne':2 };
+      const mo = (macroOrder[a.macro]||9) - (macroOrder[b.macro]||9);
+      return mo !== 0 ? mo : b.avg - a.avg;
+    });
+  }
+  return result;
+}
+
+function renderCategories() {
+  const byAccount = analyzeByCategory();
+  const ACCOUNTS  = ['CB Yann','CB Chloé','Compte commun Fortuneo','Compte SG'];
+  const stabColor = { stable:'#10B981', moderate:'#F59E0B', variable:'#EF4444' };
+  const macroColor= { Besoins:'#3B82F6', Envies:'#F59E0B', 'Épargne':'#10B981' };
+  const macroLabel= { Besoins:'🏠 Besoins (fixes)', Envies:'🛍 Envies (discrétionnaire)', 'Épargne':'💚 Épargne' };
+
+  const hasData = ACCOUNTS.some(acc => byAccount[acc] && byAccount[acc].length);
+  if (!hasData) {
+    document.getElementById('prev-content').innerHTML =
+      '<div style="color:var(--text3);font-size:13px;padding:10px">Pas assez de données catégorisées (minimum 1 mois complet).</div>';
+    return;
+  }
+
+  let out = '<div class="prev-cards">';
+
+  for (const acc of ACCOUNTS) {
+    const cats = byAccount[acc];
+    if (!cats || !cats.length) continue;
+
+    const dotColor = ACCOUNT_COLORS_MAP[acc] || '#6B7280';
+
+    // Totals
+    const totalAvg   = cats.reduce((s,c) => s + c.avg, 0);
+    const totalThis  = cats.reduce((s,c) => s + c.thisMonth, 0);
+    const totalRem   = cats.reduce((s,c) => s + c.remaining, 0);
+    const accPct     = totalAvg > 0 ? Math.min(1, totalThis / totalAvg) : 0;
+
+    // Per-macro totals
+    const macros = {};
+    for (const c of cats) {
+      if (!macros[c.macro]) macros[c.macro] = { avg:0, thisMonth:0, rem:0 };
+      macros[c.macro].avg      += c.avg;
+      macros[c.macro].thisMonth+= c.thisMonth;
+      macros[c.macro].rem      += c.remaining;
+    }
+
+    out += '<div class="prev-card">';
+
+    // Card header
+    out += '<div class="prev-card-top">'
+         + '<div class="prev-acc-dot" style="background:' + dotColor + '"></div>'
+         + '<span class="prev-acc-name">' + acc + '</span>'
+         + '<span class="prev-total">' + fmt(-totalAvg) + '/mois</span>'
+         + '</div>';
+
+    // Global progress bar
+    out += '<div class="prev-bar-wrap">'
+         + '<div class="prev-bar-paid" style="width:' + Math.round(accPct*100) + '%"></div>'
+         + '</div>';
+    out += '<div class="prev-nums" style="margin-bottom:10px">'
+         + '<span class="pn-paid">✓ ' + fmtAbs(totalThis) + ' dépensé</span>'
+         + (totalRem > 0 ? '<span class="pn-pend">~' + fmtAbs(totalRem) + ' attendu</span>' : '')
+         + '</div>';
+
+    // Legend
+    out += '<div class="stability-legend">'
+         + '<span class="stab-item"><span class="stab-dot" style="background:#10B981"></span>Stable</span>'
+         + '<span class="stab-item"><span class="stab-dot" style="background:#F59E0B"></span>Modéré</span>'
+         + '<span class="stab-item"><span class="stab-dot" style="background:#EF4444"></span>Variable</span>'
+         + '</div>';
+
+    // Group cats by macro, show section header + rows
+    let currentMacro = null;
+    for (const c of cats) {
+      if (c.macro !== currentMacro) {
+        currentMacro = c.macro;
+        const mc = macros[currentMacro];
+        const mColor = macroColor[currentMacro] || '#6B7280';
+        out += '<div class="cat-section-hdr" style="color:' + mColor + '">'
+             + (macroLabel[currentMacro] || currentMacro)
+             + ' <span style="color:var(--text3);font-size:10px;font-weight:400">moy ' + fmtAbs(mc.avg) + '/m'
+             + (mc.rem > 0 ? ' · ~' + fmtAbs(mc.rem) + ' à venir' : ' · ✓ couvert') + '</span>'
+             + '</div>';
+      }
+
+      const sc      = stabColor[c.stability];
+      const filled  = Math.round(c.pct * 100);
+      const barColor= c.pct >= 1 ? 'var(--success)' : c.pct >= 0.7 ? 'var(--warning)' : 'var(--primary)';
+      const remText = c.remaining > 0
+        ? '<span style="color:var(--warning)">~' + fmtAbs(c.remaining) + '</span>'
+        : '<span style="color:var(--success)">✓</span>';
+
+      out += '<div class="cat-row">'
+           + '<span class="stab-dot" style="background:' + sc + '" title="CV=' + Math.round(c.cv*100) + '% · ' + c.months + ' mois"></span>'
+           + '<span class="cat-name">' + c.cat + '</span>'
+           + '<span class="cat-avg">~' + fmtAbs(c.avg) + '</span>'
+           + '<div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:' + filled + '%;background:' + barColor + '"></div></div>'
+           + '<span class="cat-remaining">' + remText + '</span>'
+           + '</div>';
+    }
+
+    out += '</div>'; // card
+  }
+
+  // Synthèse tous comptes
+  let grandAvg = 0, grandThis = 0, grandRem = 0;
+  for (const cats of Object.values(byAccount)) {
+    for (const c of cats) { grandAvg += c.avg; grandThis += c.thisMonth; grandRem += c.remaining; }
+  }
+  const allCats = Object.values(byAccount).flat();
+  const stableN = allCats.filter(c => c.stability === 'stable').length;
+  const besoinsAvg = allCats.filter(c => c.macro === 'Besoins').reduce((s,c) => s+c.avg, 0);
+  const enviesAvg  = allCats.filter(c => c.macro === 'Envies').reduce((s,c) => s+c.avg, 0);
+
+  out += '<div class="prev-card" style="border-color:var(--primary)44;background:linear-gradient(135deg,var(--surface),var(--surface2))">'
+       + '<div style="font-size:11px;color:var(--text2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Synthèse tous comptes</div>'
+       + '<div style="font-size:22px;font-weight:800;color:var(--warning);margin-bottom:4px">' + fmtAbs(grandRem) + '</div>'
+       + '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">budget catégoriel restant estimé</div>'
+       + '<div style="font-size:12px;display:flex;flex-direction:column;gap:4px">'
+       + '<div style="display:flex;justify-content:space-between"><span style="color:var(--text3)">Total moyen mensuel</span><span>' + fmtAbs(grandAvg) + '</span></div>'
+       + '<div style="display:flex;justify-content:space-between"><span style="color:#3B82F6">dont Besoins</span><span style="color:#3B82F6">' + fmtAbs(besoinsAvg) + '</span></div>'
+       + '<div style="display:flex;justify-content:space-between"><span style="color:#F59E0B">dont Envies</span><span style="color:#F59E0B">' + fmtAbs(enviesAvg) + '</span></div>'
+       + '<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:4px;margin-top:2px">'
+       + '<span style="color:var(--success)">Dépensé ce mois</span><span style="color:var(--success)">' + fmtAbs(grandThis) + '</span></div>'
+       + '<div style="display:flex;justify-content:space-between;font-weight:700">'
+       + '<span style="color:var(--warning)">Reste attendu</span><span style="color:var(--warning)">' + fmtAbs(grandRem) + '</span></div>'
+       + '</div>'
+       + '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed var(--border);font-size:11px;color:var(--text3)">'
+       + stableN + '/' + allCats.length + ' sous-cat. stables</div>'
+       + '</div>';
+
+  out += '</div>';
+  document.getElementById('prev-content').innerHTML = out;
+}
+
+
+// ── Tab 2: Full recurrence list ────────────────────────────────────────────
+function renderRecurrencesList(recs) {
+  if (!recs.length) {
+    document.getElementById('prev-content').innerHTML =
+      '<div style="color:var(--text3);font-size:13px;padding:10px">Pas assez d\'historique pour détecter des récurrences (minimum 2 mois).</div>';
+    return;
+  }
+
+  const byAcc = {};
+  for (const r of recs) {
+    if (!byAcc[r.account]) byAcc[r.account] = [];
+    byAcc[r.account].push(r);
+  }
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">';
+  for (const [acc, accRecs] of Object.entries(byAcc)) {
+    const total = accRecs.reduce((s,r) => s + r.avgAmt, 0);
+    const dotColor = ACCOUNT_COLORS_MAP[acc] || '#6B7280';
+    html += `<div class="prev-card">
+      <div class="prev-card-top">
+        <div class="prev-acc-dot" style="background:${dotColor}"></div>
+        <strong style="flex:1">${acc}</strong>
+        <span style="font-size:12px;color:var(--text2)">${fmtAbs(total)}/mois · ${accRecs.length} récurrences</span>
+      </div>
+      <div class="rec-full-list">
+        ${accRecs.map(r => `<div class="rec-row">
+          <span class="rec-day">~${r.avgDay}</span>
+          <span class="rec-merchant">${r.merchant} <span class="rec-cat">${r.cat||''}</span></span>
+          <span style="font-size:10px;color:var(--text3)">${r.monthsActive}×</span>
+          <span class="rec-amt" style="color:var(--danger)">-${fmtAbs(r.avgAmt)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  document.getElementById('prev-content').innerHTML = html;
+}
+
+// ── Tab 3: Alertes ─────────────────────────────────────────────────────────
+function renderAlertes(recs) {
+  const overdue  = recs.filter(r => r.isOverdue);
+  const upcoming = recs.filter(r => r.isUpcoming);
+  const paid     = recs.filter(r => r.isPaid);
+  const now = new Date();
+  const daysLeft = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate() - now.getDate();
+
+  let html = '<div style="display:flex;flex-direction:column;gap:10px">';
+
+  // Overdue alerts
+  if (overdue.length > 0) {
+    html += `<div class="card">
+      <div class="card-hdr"><span class="card-ttl">⚠️ En retard — attendu mais non débité</span></div>
+      <div>${overdue.map(r => `
+        <div class="rec-row" style="padding:7px 0">
+          <span class="rec-day">~${r.avgDay}</span>
+          <span class="rec-status s-late">⚠</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:12px;color:var(--text)">${r.merchant}</div>
+            <div style="font-size:11px;color:var(--text3)">${r.account} · ${r.cat||'non classé'} · vu ${r.monthsActive} mois</div>
+          </div>
+          <span class="rec-amt" style="color:var(--danger)">-${fmtAbs(r.avgAmt)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Upcoming
+  if (upcoming.length > 0) {
+    html += `<div class="card">
+      <div class="card-hdr"><span class="card-ttl">○ À venir ce mois (${daysLeft}j restants)</span></div>
+      <div>${upcoming.map(r => `
+        <div class="rec-row" style="padding:7px 0">
+          <span class="rec-day">~${r.avgDay}</span>
+          <span class="rec-status s-pend">○</span>
+          <div style="flex:1">
+            <div style="font-size:12px;color:var(--text)">${r.merchant}</div>
+            <div style="font-size:11px;color:var(--text3)">${r.account} · ${r.cat||'non classé'}</div>
+          </div>
+          <span class="rec-amt" style="color:var(--warning)">-${fmtAbs(r.avgAmt)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Paid ok
+  html += `<div class="card">
+    <div class="card-hdr"><span class="card-ttl">✓ Déjà débités ce mois (${paid.length})</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0">
+      ${paid.map(r => `<span class="alert-pill ok-pill">✓ ${r.merchant} (${fmtAbs(r.paidAmt)})</span>`).join('')}
+      ${paid.length === 0 ? '<span style="color:var(--text3);font-size:12px">Aucun pour l\'instant</span>' : ''}
+    </div>
+  </div>`;
+
+  html += '</div>';
+  document.getElementById('prev-content').innerHTML = html;
+}
+
+// =====================================================================
+// VIREMENTS INTERNES
+// =====================================================================
+
+let viPairs = [];  // { debit, credit, selected, daysDiff }
+
+function detectInternalTransfers() {
+  // All transactions not already confirmed as VI
+  const all = state.transactions;
+  const debits  = all.filter(t => t.amount < 0);
+  const credits = all.filter(t => t.amount > 0);
+
+  // Index credits by rounded amount for fast lookup
+  const creditsByAmt = {};
+  for (const c of credits) {
+    const key = Math.round(Math.abs(c.amount) * 100); // cents
+    if (!creditsByAmt[key]) creditsByAmt[key] = [];
+    creditsByAmt[key].push(c);
+  }
+
+  const candidates = [];
+
+  for (const debit of debits) {
+    const key = Math.round(Math.abs(debit.amount) * 100);
+    const matches = creditsByAmt[key] || [];
+
+    for (const credit of matches) {
+      // Must be different accounts
+      if (credit.account === debit.account) continue;
+
+      // Date within ±3 days (transfers can take 1-2 days)
+      const d1 = new Date(debit.date);
+      const d2 = new Date(credit.date);
+      const daysDiff = Math.abs((d2 - d1) / 86400000);
+      if (daysDiff > 5) continue;  // 5-day tolerance for cross-bank transfers
+
+      candidates.push({ debit, credit, daysDiff, selected: true });
+    }
+  }
+
+  // Greedy deduplication: sort by daysDiff asc, then pick one pair per transaction
+  candidates.sort((a, b) => a.daysDiff - b.daysDiff ||
+    a.debit.date.localeCompare(b.debit.date));
+
+  const usedIds = new Set();
+  const pairs = [];
+  for (const pair of candidates) {
+    if (usedIds.has(pair.debit.id) || usedIds.has(pair.credit.id)) continue;
+    usedIds.add(pair.debit.id);
+    usedIds.add(pair.credit.id);
+    pairs.push(pair);
+  }
+
+  return pairs.sort((a, b) => b.debit.date.localeCompare(a.debit.date));
+}
+
+function openVIModal() {
+  viPairs = detectInternalTransfers();
+  const body = document.getElementById('vi-body');
+
+  if (!viPairs.length) {
+    body.innerHTML = `<div class="alert alert-ok">
+      ✅ Aucun virement interne détecté.<br><br>
+      <span style="color:var(--text2);font-size:12px">Critères : même montant (à 0,01€ près) · comptes différents · date ≤ 3 jours d'écart · signes opposés.</span>
+    </div>`;
+    openModal('vi-modal');
+    return;
+  }
+
+  // Already tagged as VI
+  const alreadyVI = viPairs.filter(p =>
+    p.debit.macro === 'Virements internes' || p.credit.macro === 'Virements internes');
+  const newPairs  = viPairs.filter(p =>
+    p.debit.macro  !== 'Virements internes' &&
+    p.credit.macro !== 'Virements internes');
+
+  const accColor  = acc => ACCOUNT_COLORS_MAP[acc] || '#6B7280';
+
+  body.innerHTML = `
+    <div class="alert alert-warn" style="margin-bottom:14px">
+      <strong>${newPairs.length} paire(s) nouvelle(s)</strong> détectée(s) —
+      ${alreadyVI.length} déjà classée(s) comme virements internes.
+      <br><span style="font-size:11px;color:var(--text3)">Logique : montant identique · comptes différents · signes opposés · ≤ 3 jours d'écart</span>
+    </div>
+
+    ${newPairs.length === 0 ? '<div class="alert alert-ok">✅ Tous les virements internes sont déjà classés.</div>' : `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:var(--surface2)">
+          <th style="padding:8px;text-align:center;width:32px"><input type="checkbox" checked onchange="selectAllVI(this.checked)"></th>
+          <th style="padding:8px;text-align:left">Débit</th>
+          <th style="padding:8px;text-align:center;width:30px"></th>
+          <th style="padding:8px;text-align:left">Crédit</th>
+          <th style="padding:8px;text-align:right">Montant</th>
+          <th style="padding:8px;text-align:center">Écart</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${newPairs.map((pair, i) => `
+          <tr style="border-bottom:1px solid var(--border)" id="vi-row-${i}">
+            <td style="padding:7px;text-align:center">
+              <input type="checkbox" id="vi-cb-${i}" checked onchange="toggleVI(${i},this.checked)">
+            </td>
+            <td style="padding:7px">
+              <div style="display:flex;align-items:center;gap:5px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${accColor(pair.debit.account)};flex-shrink:0;display:inline-block"></span>
+                <div>
+                  <div style="font-weight:600;color:var(--danger)">${pair.debit.date.split('-').reverse().join('/')} · ${fmt(pair.debit.amount)}</div>
+                  <div style="color:var(--text3);font-size:11px">${pair.debit.account}</div>
+                  <div style="color:var(--text2);font-size:11px" title="${pair.debit.label}">${pair.debit.label.slice(0,45)}</div>
+                </div>
+              </div>
+            </td>
+            <td style="padding:7px;text-align:center;font-size:18px;color:var(--primary)">⇄</td>
+            <td style="padding:7px">
+              <div style="display:flex;align-items:center;gap:5px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${accColor(pair.credit.account)};flex-shrink:0;display:inline-block"></span>
+                <div>
+                  <div style="font-weight:600;color:var(--success)">${pair.credit.date.split('-').reverse().join('/')} · ${fmt(pair.credit.amount)}</div>
+                  <div style="color:var(--text3);font-size:11px">${pair.credit.account}</div>
+                  <div style="color:var(--text2);font-size:11px" title="${pair.credit.label}">${pair.credit.label.slice(0,45)}</div>
+                </div>
+              </div>
+            </td>
+            <td style="padding:7px;text-align:right;font-weight:700">${fmtAbs(pair.debit.amount)}</td>
+            <td style="padding:7px;text-align:center;font-size:11px;color:${pair.daysDiff === 0 ? 'var(--success)' : 'var(--warning)'}">
+              ${pair.daysDiff === 0 ? 'même jour' : `+${pair.daysDiff}j`}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`}
+
+    ${alreadyVI.length > 0 ? `
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Déjà classés comme virements internes :</div>
+        ${alreadyVI.map(pair => `
+          <div style="font-size:11px;color:var(--text3);padding:3px 0;display:flex;gap:8px">
+            <span>${pair.debit.date.split('-').reverse().join('/')}</span>
+            <span style="color:var(--text2)">${pair.debit.account} → ${pair.credit.account}</span>
+            <span>${fmtAbs(pair.debit.amount)}</span>
+          </div>`).join('')}
+      </div>` : ''}
+  `;
+
+  // Store newPairs globally for apply
+  viPairs = newPairs;
+  updateVISummary();
+  openModal('vi-modal');
+}
+
+function toggleVI(idx, checked) {
+  if (viPairs[idx]) viPairs[idx].selected = checked;
+  updateVISummary();
+}
+
+function selectAllVI(checked) {
+  viPairs.forEach((p, i) => {
+    p.selected = checked;
+    const cb = document.getElementById(`vi-cb-${i}`);
+    if (cb) cb.checked = checked;
+  });
+  updateVISummary();
+}
+
+function updateVISummary() {
+  const sel = viPairs.filter(p => p.selected);
+  const totalAmt = sel.reduce((s, p) => s + Math.abs(p.debit.amount), 0);
+  document.getElementById('vi-summary').textContent =
+    `${sel.length}/${viPairs.length} paire(s) sélectionnée(s) · ${fmtAbs(totalAmt)} déplacé(s) vers "Virements internes"`;
+}
+
+function applyVI() {
+  const selected = viPairs.filter(p => p.selected);
+  let count = 0;
+  for (const { debit, credit } of selected) {
+    const txDebit  = state.transactions.find(t => t.id === debit.id);
+    const txCredit = state.transactions.find(t => t.id === credit.id);
+    if (txDebit) {
+      txDebit.macro = 'Virements internes';
+      txDebit.cat   = 'virement interne';
+      txDebit.confirmed = true;
+      count++;
+    }
+    if (txCredit) {
+      txCredit.macro = 'Virements internes';
+      txCredit.cat   = 'virement interne';
+      txCredit.confirmed = true;
+      count++;
+    }
+  }
+  save();
+  buildReviewQueue();
+  updateRecatBadge();
+  applyFilters();
+  renderPrevision();
+  closeModal('vi-modal');
+  showToast(`⇄ ${selected.length} paire(s) classée(s) comme virements internes (${count} transactions)`);
+}
+
+function suggestVIDetection() {
+  // Check if there are unmatched positive transfers that might be VI
+  const unmatchedCredits = state.transactions.filter(t =>
+    t.amount > 0 &&
+    t.macro === 'Non classé' &&
+    TRANSFER_SIGNALS.some(k => (t.label || '').toUpperCase().includes(k))
+  );
+  if (unmatchedCredits.length === 0) return;
+
+  // Show a persistent nudge toast with action button
+  let nudge = document.getElementById('vi-nudge');
+  if (!nudge) {
+    nudge = document.createElement('div');
+    nudge.id = 'vi-nudge';
+    nudge.style.cssText = [
+      'position:fixed','bottom:24px','left:50%','transform:translateX(-50%)',
+      'background:#1E293B','border:1px solid #F59E0B','color:#F1F5F9',
+      'padding:12px 18px','border-radius:10px','font-size:13px','font-weight:500',
+      'z-index:9999','box-shadow:0 8px 32px rgba(0,0,0,.5)',
+      'display:flex','align-items:center','gap:12px','white-space:nowrap'
+    ].join(';');
+    document.body.appendChild(nudge);
+  }
+  // Build nudge safely via DOM to avoid string escaping issues
+  const sp   = document.createElement('span');
+  sp.textContent = '⇄ ' + unmatchedCredits.length + ' virement(s) entrant(s) non apparié(s) détecté(s)';
+  const btn1 = document.createElement('button');
+  btn1.textContent = '⇄ Lancer la détection';
+  btn1.style.cssText = 'background:var(--warning);color:#000;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer';
+  btn1.onclick = function() { openVIModal(); nudge.remove(); };
+  const btn2 = document.createElement('button');
+  btn2.textContent = '✕';
+  btn2.style.cssText = 'background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:16px';
+  btn2.onclick = function() { nudge.remove(); };
+  nudge.innerHTML = '';
+  nudge.appendChild(sp);
+  nudge.appendChild(btn1);
+  nudge.appendChild(btn2);
+
+  // Auto-dismiss after 15s
+  setTimeout(() => { if (nudge.parentElement) nudge.remove(); }, 15000);
+}
+
+// =====================================================================
+// RECATEGORIZE
+// =====================================================================
+
+// Proposals state: array of { tx, proposedCat, proposedMacro, selected }
+let recatProposals = [];
+
+function computeRecatProposals() {
+  // Rebuild MERCHANT_RULES from confirmed transactions first
+  state.transactions.forEach(t => {
+    if (t.confirmed && t.cat && t.merchant && t.merchant.length > 2) {
+      // Only overwrite if not already set (preserve manually set rules)
+      if (!MERCHANT_RULES[t.merchant]) MERCHANT_RULES[t.merchant] = t.cat;
+    }
+  });
+
+  // Find all unconfirmed transactions
+  const unconfirmed = state.transactions.filter(t => !t.confirmed);
+
+  // Re-categorize each one
+  const proposals = [];
+  for (const tx of unconfirmed) {
+    const { cat, macro } = categorize(tx.merchant, tx.label, tx.amount);
+    if (cat && (cat !== tx.cat || macro !== tx.macro)) {
+      proposals.push({
+        tx,
+        proposedCat: cat,
+        proposedMacro: macro,
+        selected: true,   // pre-selected by default
+      });
+    }
+  }
+
+  // Group by merchant for display
+  return proposals;
+}
+
+function openRecatModal() {
+  recatProposals = computeRecatProposals();
+
+  const body = document.getElementById('recat-body');
+
+  if (recatProposals.length === 0) {
+    body.innerHTML = `
+      <div class="alert alert-ok">
+        ✅ Aucune nouvelle proposition — toutes les transactions non confirmées ont déjà une catégorie, ou aucune règle ne s'applique.
+        <br><br>
+        <strong>Astuce :</strong> validez manuellement quelques transactions similaires pour enrichir les règles, puis relancez.
+      </div>`;
+    openModal('recat-modal');
+    return;
+  }
+
+  // Group by merchant
+  const byMerchant = {};
+  recatProposals.forEach((p, i) => {
+    const key = p.tx.merchant || p.tx.label.slice(0, 30);
+    if (!byMerchant[key]) byMerchant[key] = [];
+    byMerchant[key].push({ ...p, idx: i });
+  });
+
+  const macroColor = { Besoins:'#3B82F6', Envies:'#F59E0B', 'Épargne':'#10B981', Revenus:'#8B5CF6', 'Non classé':'#6B7280' };
+
+  body.innerHTML = `
+    <div class="alert alert-warn" style="margin-bottom:14px">
+      <strong>${recatProposals.length} opération(s)</strong> peuvent être recatégorisées grâce aux règles apprises.
+      Décochez les propositions incorrectes avant d'appliquer.
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px;gap:8px">
+      <button class="btn btn-s btn-sm" onclick="selectAllProposals(true)">✓ Tout sélectionner</button>
+      <button class="btn btn-s btn-sm" onclick="selectAllProposals(false)">✗ Tout désélectionner</button>
+    </div>
+    ${Object.entries(byMerchant).map(([merchant, items]) => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div style="padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)">
+          <input type="checkbox" id="merchant-cb-${encodeURIComponent(merchant)}"
+            checked onchange="toggleMerchantGroup('${encodeURIComponent(merchant)}', this.checked)"
+            style="cursor:pointer;width:14px;height:14px">
+          <strong style="flex:1;font-size:13px">${merchant}</strong>
+          <span style="font-size:11px;color:var(--text3)">${items.length} transaction${items.length>1?'s':''}</span>
+          <span class="badge" style="background:${macroColor[items[0].proposedMacro] || '#6B7280'}22;color:${macroColor[items[0].proposedMacro] || '#6B7280'};font-size:10px">
+            ${items[0].proposedCat}
+          </span>
+        </div>
+        ${items.map(p => `
+          <div style="padding:6px 12px 6px 36px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)22;font-size:12px">
+            <input type="checkbox" id="prop-${p.idx}" ${p.selected?'checked':''}
+              onchange="toggleProposal(${p.idx}, this.checked)"
+              style="cursor:pointer;width:12px;height:12px">
+            <span style="color:var(--text3);white-space:nowrap">${p.tx.date.split('-').reverse().join('/')}</span>
+            <span style="flex:1;color:var(--text2)" title="${p.tx.label}">${p.tx.label.length>55?p.tx.label.slice(0,55)+'…':p.tx.label}</span>
+            <span style="color:var(--danger);font-weight:600;white-space:nowrap">${fmt(p.tx.amount)}</span>
+            <span style="color:var(--text3);font-size:11px">${p.tx.cat ? '«'+p.tx.cat+'» →' : '(vide) →'}</span>
+            <select onchange="changeProposal(${p.idx}, this.value)"
+              style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;max-width:180px">
+              ${ALL_SUBS.map(s=>`<option value="${s}" ${s===p.proposedCat?'selected':''}>${s} (${SUB2MACRO[s]})</option>`).join('')}
+            </select>
+          </div>
+        `).join('')}
+      </div>
+    `).join('')}
+  `;
+
+  updateRecatSummary();
+  openModal('recat-modal');
+}
+
+function toggleProposal(idx, checked) {
+  recatProposals[idx].selected = checked;
+  updateRecatSummary();
+}
+
+function toggleMerchantGroup(encodedMerchant, checked) {
+  const merchant = decodeURIComponent(encodedMerchant);
+  recatProposals.forEach((p, i) => {
+    const key = p.tx.merchant || p.tx.label.slice(0,30);
+    if (key === merchant) {
+      p.selected = checked;
+      const cb = document.getElementById(`prop-${i}`);
+      if (cb) cb.checked = checked;
+    }
+  });
+  updateRecatSummary();
+}
+
+function selectAllProposals(checked) {
+  recatProposals.forEach((p, i) => {
+    p.selected = checked;
+    const cb = document.getElementById(`prop-${i}`);
+    if (cb) cb.checked = checked;
+  });
+  // Update merchant checkboxes
+  document.querySelectorAll('[id^="merchant-cb-"]').forEach(cb => cb.checked = checked);
+  updateRecatSummary();
+}
+
+function changeProposal(idx, newCat) {
+  recatProposals[idx].proposedCat = newCat;
+  recatProposals[idx].proposedMacro = SUB2MACRO[newCat] || 'Non classé';
+}
+
+function updateRecatSummary() {
+  const selected = recatProposals.filter(p => p.selected).length;
+  document.getElementById('recat-summary').textContent =
+    `${selected} / ${recatProposals.length} proposition${recatProposals.length>1?'s':''} sélectionnée${selected>1?'s':''}`;
+}
+
+function applySelected() {
+  const toApply = recatProposals.filter(p => p.selected);
+  _applyProposals(toApply);
+}
+
+function applyAllProposals() {
+  _applyProposals(recatProposals);
+}
+
+function _applyProposals(proposals) {
+  let count = 0;
+  proposals.forEach(p => {
+    const tx = state.transactions.find(t => t.id === p.tx.id);
+    if (tx) {
+      tx.cat = p.proposedCat;
+      tx.macro = p.proposedMacro;
+      tx.confirmed = false;  // proposed, not yet user-confirmed
+      // Learn the merchant rule
+      if (tx.merchant) MERCHANT_RULES[tx.merchant] = p.proposedCat;
+      count++;
+    }
+  });
+  save();
+  buildReviewQueue();
+  updateRecatBadge();
+  applyFilters();
+  closeModal('recat-modal');
+  showToast(`🔄 ${count} catégorie${count>1?'s':''} mise${count>1?'s':''} à jour — à confirmer dans le tableau`);
+}
+
+function updateRecatBadge() {
+  const unconfirmedCount = state.transactions.filter(t => !t.confirmed).length;
+  const btn = document.getElementById('btn-recat');
+  const countEl = document.getElementById('recat-count');
+  if (unconfirmedCount > 0) {
+    btn.style.display = '';
+    countEl.textContent = unconfirmedCount;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+function init() {
+  try { load(); } catch(e) { console.warn('load error:', e); }
+  try { updateSubcatSelect(); } catch(e) { console.warn('subcat error:', e); }
+  try { applyFilters(); } catch(e) { console.warn('filters error:', e); renderTable(); }
+  try { updateRecatBadge(); } catch(e) { console.warn('badge error:', e); }
+  try { renderPrevision(); } catch(e) { console.warn('prevision error:', e); }
+  try { suggestVIDetection(); } catch(e) { console.warn('vi detect error:', e); }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
