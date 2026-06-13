@@ -1,4 +1,5 @@
-import { Transaction, Recurrence } from './types';
+import { Transaction, Recurrence, CategoryRecurrence } from './types';
+import { SUB2MACRO } from './constants';
 
 export function detectRecurrences(transactions: Transaction[]): Recurrence[] {
   const txs = transactions.filter(
@@ -58,4 +59,58 @@ export function detectRecurrences(transactions: Transaction[]): Recurrence[] {
   }
 
   return recurrences.sort((a, b) => a.avgDay - b.avgDay);
+}
+
+export function detectCategoryRecurrences(transactions: Transaction[]): CategoryRecurrence[] {
+  const txs = transactions.filter(
+    t => t.amount < 0 && t.macro !== 'Virements internes' && t.cat !== 'virement interne'
+  );
+  if (!txs.length) return [];
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+    .toISOString()
+    .slice(0, 7);
+
+  const groups: Record<string, Transaction[]> = {};
+  for (const t of txs) {
+    const key = `${t.account || ''}|${t.cat || ''}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  }
+
+  const result: CategoryRecurrence[] = [];
+
+  for (const [key, group] of Object.entries(groups)) {
+    const recentTxs = group.filter(t => t.date.slice(0, 7) >= sixMonthsAgo);
+    const pastTxs = recentTxs.filter(t => t.date.slice(0, 7) !== currentMonth);
+
+    const monthlyTotals: Record<string, number> = {};
+    for (const t of pastTxs) {
+      const m = t.date.slice(0, 7);
+      monthlyTotals[m] = (monthlyTotals[m] || 0) + Math.abs(t.amount);
+    }
+    const monthsActive = Object.keys(monthlyTotals).length;
+    if (monthsActive < 2) continue;
+
+    const avgMonthly = Object.values(monthlyTotals).reduce((s, v) => s + v, 0) / monthsActive;
+    const spentThisMonth = recentTxs
+      .filter(t => t.date.slice(0, 7) === currentMonth)
+      .reduce((s, t) => s + Math.abs(t.amount), 0);
+
+    const [account, cat] = key.split('|');
+
+    result.push({
+      account,
+      cat,
+      macro: SUB2MACRO[cat] || '',
+      avgMonthly: Math.round(avgMonthly * 100) / 100,
+      monthsActive,
+      spentThisMonth: Math.round(spentThisMonth * 100) / 100,
+      remaining: Math.round(Math.max(0, avgMonthly - spentThisMonth) * 100) / 100,
+    });
+  }
+
+  return result.sort((a, b) => b.remaining - a.remaining);
 }

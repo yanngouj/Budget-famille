@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useBudgetStore } from '@/store/useBudgetStore';
-import { detectRecurrences } from '@/lib/recurrences';
+import { detectRecurrences, detectCategoryRecurrences } from '@/lib/recurrences';
 import { ACCOUNT_COLORS } from '@/lib/constants';
 import { fmt, fmtAbs } from '@/lib/format';
-import { Recurrence } from '@/lib/types';
+import { Recurrence, CategoryRecurrence } from '@/lib/types';
 
-type Tab = 'besoin' | 'recurrences' | 'alertes';
+type Tab = 'besoin' | 'recurrences' | 'alertes' | 'categories';
 
 export default function Prevision() {
   const [tab, setTab] = useState<Tab>('besoin');
@@ -16,6 +16,7 @@ export default function Prevision() {
   if (!transactions.length) return null;
 
   const recs = detectRecurrences(transactions);
+  const catRecs = detectCategoryRecurrences(transactions);
   const now = new Date();
   const monthLabel = now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
   const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
@@ -39,12 +40,14 @@ export default function Prevision() {
           {tabBtn('besoin', '💳 Besoin en cash')}
           {tabBtn('recurrences', '🔁 Récurrences détectées')}
           {tabBtn('alertes', '🔔 Alertes')}
+          {tabBtn('categories', '📂 Par catégorie')}
         </div>
       </div>
 
       {tab === 'besoin' && <BesoinTab recs={recs} transactions={transactions} />}
       {tab === 'recurrences' && <RecurrencesTab recs={recs} />}
       {tab === 'alertes' && <AlertesTab recs={recs} daysLeft={daysLeft} />}
+      {tab === 'categories' && <CategoriesTab catRecs={catRecs} />}
     </div>
   );
 }
@@ -175,6 +178,80 @@ function RecurrencesTab({ recs }: { recs: Recurrence[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function CatRow({ c }: { c: CategoryRecurrence }) {
+  const covered = c.remaining <= 0;
+  return (
+    <div className="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0 text-xs">
+      <span className={`w-4 text-center shrink-0 ${covered ? 'text-emerald-400' : 'text-yellow-400'}`}>{covered ? '✓' : '○'}</span>
+      <span className="flex-1 truncate">{c.cat || 'non classé'}</span>
+      <span className="text-slate-500 text-[10px] shrink-0">{fmtAbs(c.spentThisMonth)} / {fmtAbs(c.avgMonthly)}</span>
+      <span className={`font-semibold shrink-0 ${covered ? 'text-emerald-400' : 'text-yellow-400'}`}>-{fmtAbs(c.remaining)}</span>
+    </div>
+  );
+}
+
+function CategoriesTab({ catRecs }: { catRecs: CategoryRecurrence[] }) {
+  const ACCOUNTS = ['Compte SG', 'Compte commun Fortuneo', 'CB Yann', 'CB Chloé'];
+
+  if (!catRecs.length) return <div className="text-slate-400 text-sm py-2">Pas assez d'historique pour détecter des dépenses récurrentes par catégorie (minimum 2 mois).</div>;
+
+  const totalAll = catRecs.reduce((s, c) => s + c.avgMonthly, 0);
+  const paidAll = catRecs.reduce((s, c) => s + Math.min(c.spentThisMonth, c.avgMonthly), 0);
+  const remainingAll = catRecs.reduce((s, c) => s + c.remaining, 0);
+  const remainingColor = remainingAll > 0 ? 'text-yellow-400' : 'text-emerald-400';
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3">
+      {ACCOUNTS.map(acc => {
+        const accCats = catRecs.filter(c => c.account === acc);
+        if (!accCats.length) return null;
+        const totalMonthly = accCats.reduce((s, c) => s + c.avgMonthly, 0);
+        const paidAmt = accCats.reduce((s, c) => s + Math.min(c.spentThisMonth, c.avgMonthly), 0);
+        const remaining = accCats.reduce((s, c) => s + c.remaining, 0);
+        const paidPct = totalMonthly > 0 ? Math.round(paidAmt / totalMonthly * 100) : 0;
+        const dotColor = ACCOUNT_COLORS[acc] || '#6B7280';
+        const remainTextColor = remaining > 0 ? 'text-yellow-400' : 'text-emerald-400';
+        return (
+          <div key={acc} className="bg-[#1E293B] border border-[#2D3F55] rounded-xl p-3.5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: dotColor }} />
+              <span className="text-sm font-bold flex-1 truncate">{acc}</span>
+              <span className="text-xs text-slate-400">{fmt(-totalMonthly)}/mois</span>
+            </div>
+            <div className="flex rounded-full overflow-hidden h-2 mb-2.5 bg-[#2D3F55]">
+              <div className="bg-emerald-500 transition-all" style={{ width: `${paidPct}%` }} />
+              <div className="bg-yellow-500 transition-all" style={{ width: `${100 - paidPct}%` }} />
+            </div>
+            <div className="flex gap-3 text-[11px] mb-2.5 flex-wrap">
+              <span className="text-emerald-400">✓ Dépensé : {fmtAbs(paidAmt)}</span>
+              {remaining > 0 && <span className="text-yellow-400">○ Reste à mobiliser : {fmtAbs(remaining)}</span>}
+            </div>
+            <div className={`text-sm font-extrabold mb-2 ${remainTextColor}`}>
+              {remaining > 0 ? `Besoin cash : ${fmtAbs(remaining)}` : '✓ Budget mensuel couvert'}
+            </div>
+            <div className="max-h-44 overflow-y-auto">
+              {accCats.map((c, i) => <CatRow key={i} c={c} />)}
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="bg-[#1E293B] border border-blue-500/30 rounded-xl p-3.5" style={{ background: 'linear-gradient(135deg, #1E293B, #243347)' }}>
+        <div className="text-xs text-slate-400 font-bold uppercase tracking-wide mb-2">📊 Synthèse tous comptes</div>
+        <div className={`text-2xl font-extrabold mb-1 ${remainingColor}`}>{fmtAbs(remainingAll)}</div>
+        <div className="text-xs text-slate-400 mb-3">reste à mobiliser ce mois (par catégorie)</div>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between"><span className="text-slate-400">Budget mensuel moyen</span><span>{fmtAbs(totalAll)}</span></div>
+          <div className="flex justify-between"><span className="text-emerald-400">Déjà dépensé ce mois</span><span className="text-emerald-400">{fmtAbs(paidAll)}</span></div>
+          <div className={`flex justify-between font-bold border-t border-[#2D3F55] pt-1 mt-1 ${remainingColor}`}>
+            <span>Reste à mobiliser</span><span>{fmtAbs(remainingAll)}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

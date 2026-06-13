@@ -59,6 +59,16 @@ export interface Recurrence {
   label: string;
 }
 
+export interface CategoryRecurrence {
+  account: string;
+  cat: string;
+  macro: string;
+  avgMonthly: number;
+  monthsActive: number;
+  spentThisMonth: number;
+  remaining: number;
+}
+
 export interface VIPair {
   debit: Transaction;
   credit: Transaction;
