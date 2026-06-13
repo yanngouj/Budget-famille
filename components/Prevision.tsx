@@ -119,10 +119,10 @@ function BesoinTab({ recs, transactions }: { recs: Recurrence[]; transactions: R
             <div className={`text-sm font-extrabold mb-2 ${needTextColor}`}>{needLabel}</div>
             <div className="max-h-44 overflow-y-auto">
               {accRecs.filter(r => !r.isPaid).sort((a, b) => a.avgDay - b.avgDay).map((r, i) =>
-                <RecRow key={i} r={r} type={r.isOverdue ? 'late' : 'pend'} />
+                <RecRow key={`pending-${i}`} r={r} type={r.isOverdue ? 'late' : 'pend'} />
               )}
               {accRecs.filter(r => r.isPaid).slice(0, 4).map((r, i) =>
-                <RecRow key={i} r={r} type="paid" />
+                <RecRow key={`paid-${i}`} r={r} type="paid" />
               )}
             </div>
           </div>

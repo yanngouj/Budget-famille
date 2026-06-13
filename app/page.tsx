@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import FilterBar from '@/components/FilterBar';
 import Charts from '@/components/Charts';
@@ -12,6 +12,8 @@ import ImportModal from '@/components/modals/ImportModal';
 import VIModal from '@/components/modals/VIModal';
 import RecatModal from '@/components/modals/RecatModal';
 import { FileFormat } from '@/lib/parsers';
+import { useBudgetStore } from '@/store/useBudgetStore';
+import { Transaction } from '@/lib/types';
 
 interface PendingImport {
   text: string;
@@ -28,6 +30,26 @@ export default function Page() {
   function handleNeedAccount(text: string, format: FileFormat, filename: string) {
     setPending({ text, format, filename });
   }
+
+  useEffect(() => {
+    function loadSeedIfEmpty() {
+      if (useBudgetStore.getState().transactions.length > 0) return;
+      fetch('/seed-data.json')
+        .then(res => res.json())
+        .then((txs: Transaction[]) => useBudgetStore.getState().importJSON(txs))
+        .catch(() => {});
+    }
+
+    if (useBudgetStore.persist.hasHydrated()) {
+      loadSeedIfEmpty();
+    } else {
+      const unsub = useBudgetStore.persist.onFinishHydration(() => {
+        loadSeedIfEmpty();
+        unsub();
+      });
+      return unsub;
+    }
+  }, []);
 
   return (
     <div className="min-h-screen" style={{ background: '#0F172A' }}>
