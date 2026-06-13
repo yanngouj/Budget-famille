@@ -158,6 +158,7 @@ export function detectCategoryRecurrences(transactions: Transaction[]): {
       macro,
       avgMonthly: Math.round(avgMonthly * 100) / 100,
       monthsActive,
+      activeMonths: Object.keys(kept).sort(),
       spentThisMonth: Math.round(spentThisMonth * 100) / 100,
       remaining: Math.round(Math.max(0, avgMonthly - spentThisMonth) * 100) / 100,
     });

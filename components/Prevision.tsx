@@ -384,8 +384,16 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
   const today = now.toISOString().slice(0, 10);
 
-  const filterAndScroll = (f: { account?: string; subcat?: string }) => {
-    setFilters({ account: f.account ?? 'all', subcat: f.subcat ?? 'all', macro: 'all', search: '', start: monthStart, end: today });
+  // Première date à prendre en compte : le 1er du plus ancien mois actif parmi les
+  // entrées concernées (mois ayant servi au calcul de la moyenne), ou le mois en
+  // cours si aucun mois actif n'est disponible.
+  const earliestMonth = (entries: CategoryRecurrence[]) => {
+    const months = entries.flatMap(c => c.activeMonths);
+    return months.length ? `${months.sort()[0]}-01` : monthStart;
+  };
+
+  const filterAndScroll = (f: { account?: string; subcat?: string }, entries: CategoryRecurrence[]) => {
+    setFilters({ account: f.account ?? 'all', subcat: f.subcat ?? 'all', macro: 'all', search: '', start: earliestMonth(entries), end: today });
     // Laisse le temps au tableau filtré de se rerender avant de scroller, sinon la
     // mise en page change après le scroll et la position devient incorrecte.
     setTimeout(() => {
@@ -421,8 +429,8 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
                 <tr key={cat} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
                   <td
                     className="py-1.5 pr-3 truncate sticky left-0 bg-[#1E293B] align-top cursor-pointer hover:text-blue-400"
-                    onClick={() => filterAndScroll({ subcat: cat })}
-                    title="Voir les transactions de cette sous-catégorie (tous comptes, ce mois)"
+                    onClick={() => filterAndScroll({ subcat: cat }, catRecs.filter(x => x.cat === cat))}
+                    title="Voir les transactions de cette sous-catégorie (tous comptes, mois pertinents)"
                   >
                     {cat || 'non classé'}
                   </td>
@@ -434,8 +442,8 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
                       <td
                         key={acc}
                         className="text-right py-1.5 px-2 align-top cursor-pointer hover:bg-white/5 rounded"
-                        onClick={() => filterAndScroll({ account: acc, subcat: cat })}
-                        title={`Voir les transactions ${cat} · ${acc} (ce mois)`}
+                        onClick={() => filterAndScroll({ account: acc, subcat: cat }, c ? [c] : [])}
+                        title={`Voir les transactions ${cat} · ${acc} (mois pertinents)`}
                       >
                         <div className={`flex items-baseline justify-end gap-0.5 ${monthsColor(c.monthsActive)}`}>
                           {summaryLine(c.avgMonthly, c.spentThisMonth)}
@@ -449,8 +457,8 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
                   })}
                   <td
                     className="text-right py-1.5 pl-3 align-top cursor-pointer hover:bg-white/5 rounded"
-                    onClick={() => filterAndScroll({ subcat: cat })}
-                    title={`Voir les transactions ${cat} (tous comptes, ce mois)`}
+                    onClick={() => filterAndScroll({ subcat: cat }, catRecs.filter(x => x.cat === cat))}
+                    title={`Voir les transactions ${cat} (tous comptes, mois pertinents)`}
                   >
                     {summaryLine(rt.avg, rt.spent)}
                     <div className={`font-bold ${rt.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
@@ -470,8 +478,8 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
                   <td
                     key={acc}
                     className="text-right py-1.5 px-2 align-top cursor-pointer hover:bg-white/5 rounded"
-                    onClick={() => filterAndScroll({ account: acc })}
-                    title={`Voir les transactions ${acc} (ce mois)`}
+                    onClick={() => filterAndScroll({ account: acc }, catRecs.filter(x => x.account === acc))}
+                    title={`Voir les transactions ${acc} (mois pertinents)`}
                   >
                     {summaryLine(ct.avg, ct.spent)}
                     <div className={ct.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}>
@@ -482,8 +490,8 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
               })}
               <td
                 className="text-right py-1.5 pl-3 align-top cursor-pointer hover:bg-white/5 rounded"
-                onClick={() => filterAndScroll({})}
-                title="Voir toutes les transactions (ce mois)"
+                onClick={() => filterAndScroll({}, catRecs)}
+                title="Voir toutes les transactions (mois pertinents)"
               >
                 {summaryLine(grand.avg, grand.spent)}
                 <div className={grand.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}>

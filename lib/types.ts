@@ -65,6 +65,7 @@ export interface CategoryRecurrence {
   macro: string;
   avgMonthly: number;
   monthsActive: number;
+  activeMonths: string[]; // mois (YYYY-MM) pris en compte dans la moyenne, hors exceptionnels
   spentThisMonth: number;
   remaining: number;
 }
