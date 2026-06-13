@@ -7,7 +7,7 @@ import { ACCOUNT_COLORS } from '@/lib/constants';
 import { fmt, fmtAbs } from '@/lib/format';
 import { Recurrence, CategoryRecurrence, ExceptionalExpense } from '@/lib/types';
 
-type Tab = 'besoin' | 'recurrences' | 'alertes' | 'categories';
+type Tab = 'besoin' | 'recurrences' | 'alertes' | 'categories' | 'categories-table';
 
 export default function Prevision() {
   const [tab, setTab] = useState<Tab>('besoin');
@@ -41,6 +41,7 @@ export default function Prevision() {
           {tabBtn('recurrences', '🔁 Récurrences détectées')}
           {tabBtn('alertes', '🔔 Alertes')}
           {tabBtn('categories', '📂 Par catégorie')}
+          {tabBtn('categories-table', '📊 Tableau par catégorie')}
         </div>
       </div>
 
@@ -48,6 +49,7 @@ export default function Prevision() {
       {tab === 'recurrences' && <RecurrencesTab recs={recs} />}
       {tab === 'alertes' && <AlertesTab recs={recs} daysLeft={daysLeft} />}
       {tab === 'categories' && <CategoriesTab catRecs={catRecs} catExceptional={catExceptional} />}
+      {tab === 'categories-table' && <CategoriesTableTab catRecs={catRecs} catExceptional={catExceptional} />}
     </div>
   );
 }
@@ -338,6 +340,91 @@ function AlertesTab({ recs, daysLeft }: { recs: Recurrence[]; daysLeft: number }
             </span>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecurrence[]; catExceptional: ExceptionalExpense[] }) {
+  const ACCOUNTS = ['Compte SG', 'Compte commun Fortuneo', 'CB Yann', 'CB Chloé'];
+
+  if (!catRecs.length) return (
+    <>
+      <ExceptionalTab exceptional={catExceptional} />
+      <div className="text-slate-400 text-sm py-2">Pas assez d'historique pour détecter des dépenses récurrentes par catégorie (minimum 2 mois).</div>
+    </>
+  );
+
+  // Toutes les sous-catégories présentes, triées par "reste à mobiliser" total décroissant
+  const catTotals: Record<string, number> = {};
+  for (const c of catRecs) catTotals[c.cat] = (catTotals[c.cat] || 0) + c.remaining;
+  const cats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+
+  const cell = (cat: string, acc: string) => catRecs.find(c => c.cat === cat && c.account === acc);
+
+  const colTotal = (acc: string) => catRecs.filter(c => c.account === acc).reduce((s, c) => s + c.remaining, 0);
+  const grandTotal = catRecs.reduce((s, c) => s + c.remaining, 0);
+
+  return (
+    <div>
+      <ExceptionalTab exceptional={catExceptional} />
+      <div className="bg-[#1E293B] border border-[#2D3F55] rounded-xl p-3.5 overflow-x-auto">
+        <div className="text-xs text-slate-400 font-bold uppercase tracking-wide mb-2.5">📊 Besoin cash par sous-catégorie / compte (reste à mobiliser ce mois)</div>
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="text-slate-400 border-b border-[#2D3F55]">
+              <th className="text-left py-1.5 pr-3 font-semibold sticky left-0 bg-[#1E293B]">Sous-catégorie</th>
+              {ACCOUNTS.map(acc => (
+                <th key={acc} className="text-right py-1.5 px-2 font-semibold whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 justify-end">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ACCOUNT_COLORS[acc] || '#6B7280' }} />
+                    {acc}
+                  </span>
+                </th>
+              ))}
+              <th className="text-right py-1.5 pl-3 font-semibold whitespace-nowrap">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cats.map(cat => {
+              const rowTotal = catTotals[cat];
+              return (
+                <tr key={cat} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                  <td className="py-1.5 pr-3 truncate sticky left-0 bg-[#1E293B]">{cat || 'non classé'}</td>
+                  {ACCOUNTS.map(acc => {
+                    const c = cell(cat, acc);
+                    if (!c) return <td key={acc} className="text-right py-1.5 px-2 text-slate-600">—</td>;
+                    const covered = c.remaining <= 0;
+                    return (
+                      <td key={acc} className={`text-right py-1.5 px-2 font-semibold ${covered ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                        {fmtAbs(c.remaining)}
+                      </td>
+                    );
+                  })}
+                  <td className={`text-right py-1.5 pl-3 font-bold ${rowTotal > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                    {fmtAbs(rowTotal)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-[#2D3F55] font-bold">
+              <td className="py-1.5 pr-3 sticky left-0 bg-[#1E293B]">Total</td>
+              {ACCOUNTS.map(acc => {
+                const t = colTotal(acc);
+                return (
+                  <td key={acc} className={`text-right py-1.5 px-2 ${t > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                    {fmtAbs(t)}
+                  </td>
+                );
+              })}
+              <td className={`text-right py-1.5 pl-3 ${grandTotal > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                {fmtAbs(grandTotal)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
     </div>
   );
