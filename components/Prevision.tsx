@@ -362,14 +362,29 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
 
   const cell = (cat: string, acc: string) => catRecs.find(c => c.cat === cat && c.account === acc);
 
-  const colTotal = (acc: string) => catRecs.filter(c => c.account === acc).reduce((s, c) => s + c.remaining, 0);
-  const grandTotal = catRecs.reduce((s, c) => s + c.remaining, 0);
+  const sumBy = (filterFn: (c: CategoryRecurrence) => boolean) => ({
+    avg: catRecs.filter(filterFn).reduce((s, c) => s + c.avgMonthly, 0),
+    spent: catRecs.filter(filterFn).reduce((s, c) => s + Math.min(c.spentThisMonth, c.avgMonthly), 0),
+    remaining: catRecs.filter(filterFn).reduce((s, c) => s + c.remaining, 0),
+  });
+
+  const rowSum = (cat: string) => sumBy(c => c.cat === cat);
+  const colSum = (acc: string) => sumBy(c => c.account === acc);
+  const grand = sumBy(() => true);
+
+  // Indicateur de fiabilité : opacité selon le nombre de mois actifs (2 = peu fiable, 5-6 = très fiable)
+  const monthsColor = (n: number) => n >= 5 ? 'text-slate-400' : n >= 3 ? 'text-slate-500' : 'text-slate-600';
+
+  const summaryLine = (avg: number, spent: number) => (
+    <div className="text-[9px] text-slate-500 whitespace-nowrap">{fmtAbs(spent)} / {fmtAbs(avg)}</div>
+  );
 
   return (
     <div>
       <ExceptionalTab exceptional={catExceptional} />
       <div className="bg-[#1E293B] border border-[#2D3F55] rounded-xl p-3.5 overflow-x-auto">
-        <div className="text-xs text-slate-400 font-bold uppercase tracking-wide mb-2.5">📊 Besoin cash par sous-catégorie / compte (reste à mobiliser ce mois)</div>
+        <div className="text-xs text-slate-400 font-bold uppercase tracking-wide mb-1">📊 Besoin cash par sous-catégorie / compte (reste à mobiliser ce mois)</div>
+        <div className="text-[10px] text-slate-500 mb-2.5">Chaque cellule : dépensé / moyenne mensuelle, puis reste à mobiliser. Le nombre de mois actifs (sur 6) est indiqué en exposant.</div>
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="text-slate-400 border-b border-[#2D3F55]">
@@ -387,22 +402,31 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
           </thead>
           <tbody>
             {cats.map(cat => {
-              const rowTotal = catTotals[cat];
+              const rt = rowSum(cat);
               return (
                 <tr key={cat} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
-                  <td className="py-1.5 pr-3 truncate sticky left-0 bg-[#1E293B]">{cat || 'non classé'}</td>
+                  <td className="py-1.5 pr-3 truncate sticky left-0 bg-[#1E293B] align-top">{cat || 'non classé'}</td>
                   {ACCOUNTS.map(acc => {
                     const c = cell(cat, acc);
-                    if (!c) return <td key={acc} className="text-right py-1.5 px-2 text-slate-600">—</td>;
+                    if (!c) return <td key={acc} className="text-right py-1.5 px-2 text-slate-600 align-top">—</td>;
                     const covered = c.remaining <= 0;
                     return (
-                      <td key={acc} className={`text-right py-1.5 px-2 font-semibold ${covered ? 'text-emerald-400' : 'text-yellow-400'}`}>
-                        {fmtAbs(c.remaining)}
+                      <td key={acc} className="text-right py-1.5 px-2 align-top">
+                        <div className={`flex items-baseline justify-end gap-0.5 ${monthsColor(c.monthsActive)}`}>
+                          {summaryLine(c.avgMonthly, c.spentThisMonth)}
+                          <sup className="text-[8px]">{c.monthsActive}m</sup>
+                        </div>
+                        <div className={`font-semibold ${covered ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                          {fmtAbs(c.remaining)}
+                        </div>
                       </td>
                     );
                   })}
-                  <td className={`text-right py-1.5 pl-3 font-bold ${rowTotal > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                    {fmtAbs(rowTotal)}
+                  <td className="text-right py-1.5 pl-3 align-top">
+                    {summaryLine(rt.avg, rt.spent)}
+                    <div className={`font-bold ${rt.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                      {fmtAbs(rt.remaining)}
+                    </div>
                   </td>
                 </tr>
               );
@@ -410,17 +434,23 @@ function CategoriesTableTab({ catRecs, catExceptional }: { catRecs: CategoryRecu
           </tbody>
           <tfoot>
             <tr className="border-t border-[#2D3F55] font-bold">
-              <td className="py-1.5 pr-3 sticky left-0 bg-[#1E293B]">Total</td>
+              <td className="py-1.5 pr-3 sticky left-0 bg-[#1E293B] align-top">Total</td>
               {ACCOUNTS.map(acc => {
-                const t = colTotal(acc);
+                const ct = colSum(acc);
                 return (
-                  <td key={acc} className={`text-right py-1.5 px-2 ${t > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                    {fmtAbs(t)}
+                  <td key={acc} className="text-right py-1.5 px-2 align-top">
+                    {summaryLine(ct.avg, ct.spent)}
+                    <div className={ct.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}>
+                      {fmtAbs(ct.remaining)}
+                    </div>
                   </td>
                 );
               })}
-              <td className={`text-right py-1.5 pl-3 ${grandTotal > 0 ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                {fmtAbs(grandTotal)}
+              <td className="text-right py-1.5 pl-3 align-top">
+                {summaryLine(grand.avg, grand.spent)}
+                <div className={grand.remaining > 0 ? 'text-yellow-400' : 'text-emerald-400'}>
+                  {fmtAbs(grand.remaining)}
+                </div>
               </td>
             </tr>
           </tfoot>
