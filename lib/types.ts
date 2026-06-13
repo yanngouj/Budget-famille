@@ -69,6 +69,14 @@ export interface CategoryRecurrence {
   remaining: number;
 }
 
+export interface ExceptionalExpense {
+  account: string;
+  cat: string;
+  macro: string;
+  month: string;
+  amount: number;
+}
+
 export interface VIPair {
   debit: Transaction;
   credit: Transaction;

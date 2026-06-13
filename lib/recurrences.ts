@@ -1,4 +1,4 @@
-import { Transaction, Recurrence, CategoryRecurrence } from './types';
+import { Transaction, Recurrence, CategoryRecurrence, ExceptionalExpense } from './types';
 import { SUB2MACRO } from './constants';
 
 export function detectRecurrences(transactions: Transaction[]): Recurrence[] {
@@ -61,11 +61,45 @@ export function detectRecurrences(transactions: Transaction[]): Recurrence[] {
   return recurrences.sort((a, b) => a.avgDay - b.avgDay);
 }
 
-export function detectCategoryRecurrences(transactions: Transaction[]): CategoryRecurrence[] {
+// Détecte les mois "exceptionnels" au sein d'un groupe : un mois dont le total
+// est nettement supérieur (>3x) à la médiane des autres mois est considéré
+// comme une dépense ponctuelle (ex: gros virement épargne) et n'est pas pris
+// en compte dans le calcul de la moyenne récurrente.
+function splitExceptionalMonths(monthlyTotals: Record<string, number>): {
+  kept: Record<string, number>;
+  exceptional: { month: string; amount: number }[];
+} {
+  const entries = Object.entries(monthlyTotals);
+  const kept: Record<string, number> = {};
+  const exceptional: { month: string; amount: number }[] = [];
+
+  for (const [month, amount] of entries) {
+    const others = entries.filter(([m]) => m !== month).map(([, v]) => v);
+    if (!others.length) {
+      kept[month] = amount;
+      continue;
+    }
+    const sorted = [...others].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    if (amount > median * 3 && amount - median > 100) {
+      exceptional.push({ month, amount });
+    } else {
+      kept[month] = amount;
+    }
+  }
+
+  return { kept, exceptional };
+}
+
+export function detectCategoryRecurrences(transactions: Transaction[]): {
+  recurrences: CategoryRecurrence[];
+  exceptional: ExceptionalExpense[];
+} {
   const txs = transactions.filter(
     t => t.amount < 0 && t.macro !== 'Virements internes' && t.cat !== 'virement interne'
   );
-  if (!txs.length) return [];
+  if (!txs.length) return { recurrences: [], exceptional: [] };
 
   const now = new Date();
   const currentMonth = now.toISOString().slice(0, 7);
@@ -80,7 +114,8 @@ export function detectCategoryRecurrences(transactions: Transaction[]): Category
     groups[key].push(t);
   }
 
-  const result: CategoryRecurrence[] = [];
+  const recurrences: CategoryRecurrence[] = [];
+  const exceptional: ExceptionalExpense[] = [];
 
   for (const [key, group] of Object.entries(groups)) {
     const recentTxs = group.filter(t => t.date.slice(0, 7) >= sixMonthsAgo);
@@ -91,20 +126,27 @@ export function detectCategoryRecurrences(transactions: Transaction[]): Category
       const m = t.date.slice(0, 7);
       monthlyTotals[m] = (monthlyTotals[m] || 0) + Math.abs(t.amount);
     }
-    const monthsActive = Object.keys(monthlyTotals).length;
+
+    const [account, cat] = key.split('|');
+    const macro = SUB2MACRO[cat] || '';
+
+    const { kept, exceptional: exceptionalMonths } = splitExceptionalMonths(monthlyTotals);
+    for (const { month, amount } of exceptionalMonths) {
+      exceptional.push({ account, cat, macro, month, amount: Math.round(amount * 100) / 100 });
+    }
+
+    const monthsActive = Object.keys(kept).length;
     if (monthsActive < 2) continue;
 
-    const avgMonthly = Object.values(monthlyTotals).reduce((s, v) => s + v, 0) / monthsActive;
+    const avgMonthly = Object.values(kept).reduce((s, v) => s + v, 0) / monthsActive;
     const spentThisMonth = recentTxs
       .filter(t => t.date.slice(0, 7) === currentMonth)
       .reduce((s, t) => s + Math.abs(t.amount), 0);
 
-    const [account, cat] = key.split('|');
-
-    result.push({
+    recurrences.push({
       account,
       cat,
-      macro: SUB2MACRO[cat] || '',
+      macro,
       avgMonthly: Math.round(avgMonthly * 100) / 100,
       monthsActive,
       spentThisMonth: Math.round(spentThisMonth * 100) / 100,
@@ -112,5 +154,8 @@ export function detectCategoryRecurrences(transactions: Transaction[]): Category
     });
   }
 
-  return result.sort((a, b) => b.remaining - a.remaining);
+  return {
+    recurrences: recurrences.sort((a, b) => b.remaining - a.remaining),
+    exceptional: exceptional.sort((a, b) => b.amount - a.amount),
+  };
 }

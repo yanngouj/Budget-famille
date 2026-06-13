@@ -5,7 +5,7 @@ import { useBudgetStore } from '@/store/useBudgetStore';
 import { detectRecurrences, detectCategoryRecurrences } from '@/lib/recurrences';
 import { ACCOUNT_COLORS } from '@/lib/constants';
 import { fmt, fmtAbs } from '@/lib/format';
-import { Recurrence, CategoryRecurrence } from '@/lib/types';
+import { Recurrence, CategoryRecurrence, ExceptionalExpense } from '@/lib/types';
 
 type Tab = 'besoin' | 'recurrences' | 'alertes' | 'categories';
 
@@ -16,7 +16,7 @@ export default function Prevision() {
   if (!transactions.length) return null;
 
   const recs = detectRecurrences(transactions);
-  const catRecs = detectCategoryRecurrences(transactions);
+  const { recurrences: catRecs, exceptional: catExceptional } = detectCategoryRecurrences(transactions);
   const now = new Date();
   const monthLabel = now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
   const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
@@ -47,7 +47,7 @@ export default function Prevision() {
       {tab === 'besoin' && <BesoinTab recs={recs} transactions={transactions} />}
       {tab === 'recurrences' && <RecurrencesTab recs={recs} />}
       {tab === 'alertes' && <AlertesTab recs={recs} daysLeft={daysLeft} />}
-      {tab === 'categories' && <CategoriesTab catRecs={catRecs} />}
+      {tab === 'categories' && <CategoriesTab catRecs={catRecs} catExceptional={catExceptional} />}
     </div>
   );
 }
@@ -194,10 +194,41 @@ function CatRow({ c }: { c: CategoryRecurrence }) {
   );
 }
 
-function CategoriesTab({ catRecs }: { catRecs: CategoryRecurrence[] }) {
+function ExceptionalTab({ exceptional }: { exceptional: ExceptionalExpense[] }) {
+  if (!exceptional.length) return null;
+
+  const total = exceptional.reduce((s, e) => s + e.amount, 0);
+
+  return (
+    <div className="bg-[#1E293B] border border-[#2D3F55] rounded-xl p-3.5 mb-3">
+      <div className="text-xs text-slate-400 font-bold uppercase tracking-wide mb-2">
+        ⚠️ Dépenses exceptionnelles détectées ({fmtAbs(total)})
+      </div>
+      <div className="text-[11px] text-slate-500 mb-2">
+        Ces dépenses ponctuelles ont été exclues du calcul des moyennes récurrentes ci-dessous.
+      </div>
+      <div className="space-y-1 text-xs max-h-40 overflow-y-auto">
+        {exceptional.map((e, i) => (
+          <div key={i} className="flex items-center gap-1.5 py-1 border-b border-white/5 last:border-0">
+            <span className="flex-1 truncate">{e.cat || 'non classé'}</span>
+            <span className="text-slate-500 text-[10px] shrink-0">{e.account} · {e.month}</span>
+            <span className="font-semibold text-orange-400 shrink-0">{fmtAbs(e.amount)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CategoriesTab({ catRecs, catExceptional }: { catRecs: CategoryRecurrence[]; catExceptional: ExceptionalExpense[] }) {
   const ACCOUNTS = ['Compte SG', 'Compte commun Fortuneo', 'CB Yann', 'CB Chloé'];
 
-  if (!catRecs.length) return <div className="text-slate-400 text-sm py-2">Pas assez d'historique pour détecter des dépenses récurrentes par catégorie (minimum 2 mois).</div>;
+  if (!catRecs.length) return (
+    <>
+      <ExceptionalTab exceptional={catExceptional} />
+      <div className="text-slate-400 text-sm py-2">Pas assez d'historique pour détecter des dépenses récurrentes par catégorie (minimum 2 mois).</div>
+    </>
+  );
 
   const totalAll = catRecs.reduce((s, c) => s + c.avgMonthly, 0);
   const paidAll = catRecs.reduce((s, c) => s + Math.min(c.spentThisMonth, c.avgMonthly), 0);
@@ -205,7 +236,9 @@ function CategoriesTab({ catRecs }: { catRecs: CategoryRecurrence[] }) {
   const remainingColor = remainingAll > 0 ? 'text-yellow-400' : 'text-emerald-400';
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3">
+    <div>
+      <ExceptionalTab exceptional={catExceptional} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-3">
       {ACCOUNTS.map(acc => {
         const accCats = catRecs.filter(c => c.account === acc);
         if (!accCats.length) return null;
@@ -251,6 +284,7 @@ function CategoriesTab({ catRecs }: { catRecs: CategoryRecurrence[] }) {
             <span>Reste à mobiliser</span><span>{fmtAbs(remainingAll)}</span>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
