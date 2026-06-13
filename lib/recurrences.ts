@@ -96,8 +96,12 @@ export function detectCategoryRecurrences(transactions: Transaction[]): {
   recurrences: CategoryRecurrence[];
   exceptional: ExceptionalExpense[];
 } {
+  // "Besoins" + les "Envies" qui sont en réalité des abonnements récurrents
+  // (sport, divertissement) — le reste des "Envies" (sorties, vacances, shopping...)
+  // est trop ponctuel pour représenter un besoin de cash mensuel.
+  const RECURRING_ENVIES = ['abonnements sports', 'abonnements divertissements'];
   const txs = transactions.filter(
-    t => t.amount < 0 && t.macro !== 'Virements internes' && t.cat !== 'virement interne'
+    t => t.amount < 0 && (t.macro === 'Besoins' || RECURRING_ENVIES.includes(t.cat))
   );
   if (!txs.length) return { recurrences: [], exceptional: [] };
 
