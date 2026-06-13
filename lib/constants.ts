@@ -666,6 +666,17 @@ export const MERCHANT_RULES: Record<string, string> = {
   "LA PALLARESA": "vacances/WE en famille",
   "CASA ALFONSO": "vacances/WE en famille",
   "CABESTAN": "travaux/jardin",
+  "LEA MOUDIAPIN": "famille",
+  "RAMOS ALMEIDA FIGUEIREDO": "famille",
+  "REGIE ENFANCE LYON": "virement interne",
+  "MJC MONTCHAT": "abonnements sports",
+  "ARRETE ": "frais bancaires",
+  "CLAIRE BAZIN ET NICOLAS KUZNIK": "sorties resto/WE",
+  "PIERRE D'HAENE": "remboursements",
+  "BONNAVENTURE": "remboursements",
+  "SWANN ROBERT": "remboursements",
+  "TOULOTTE MARINEIDE": "remboursements",
+  "FOULIARD": "remboursements",
 };
 
 export const KW_RULES: { kw: string[]; cat: string }[] = [
