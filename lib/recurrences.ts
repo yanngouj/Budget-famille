@@ -135,8 +135,13 @@ export function detectCategoryRecurrences(transactions: Transaction[]): {
       exceptional.push({ account, cat, macro, month, amount: Math.round(amount * 100) / 100 });
     }
 
+    // La catégorie est récurrente si elle a eu de l'activité au moins 2 mois
+    // (exceptionnels inclus), mais la moyenne ne porte que sur les mois normaux.
+    const monthsActiveTotal = Object.keys(monthlyTotals).length;
+    if (monthsActiveTotal < 2) continue;
+
     const monthsActive = Object.keys(kept).length;
-    if (monthsActive < 2) continue;
+    if (monthsActive < 1) continue;
 
     const avgMonthly = Object.values(kept).reduce((s, v) => s + v, 0) / monthsActive;
     const spentThisMonth = recentTxs
