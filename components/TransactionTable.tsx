@@ -75,7 +75,7 @@ export default function TransactionTable() {
   }
 
   return (
-    <div className="bg-[#1E293B] border border-[#2D3F55] rounded-xl overflow-hidden">
+    <div id="transactions-table" className="bg-[#1E293B] border border-[#2D3F55] rounded-xl overflow-hidden">
       <div className="flex items-center gap-2.5 p-3 border-b border-[#2D3F55] flex-wrap">
         <span className="text-sm font-bold flex-1">📋 Transactions</span>
         <span className="text-xs text-slate-400">
