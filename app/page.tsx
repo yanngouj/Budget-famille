@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
 import FilterBar from '@/components/FilterBar';
-import Charts from '@/components/Charts';
 import TransactionTable from '@/components/TransactionTable';
 import Prevision from '@/components/Prevision';
 import DropZone from '@/components/DropZone';
@@ -63,7 +62,6 @@ export default function Page() {
 
       <main className="px-5 py-4">
         <Prevision />
-        <Charts />
         <TransactionTable />
       </main>
 
